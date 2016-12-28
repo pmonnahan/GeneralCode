@@ -1,7 +1,7 @@
 #!/bin/bash -e
 #SBATCH -J HC.LUZ
-#SBATCH -o /nbi/Research-Groups/JIC/Levi-Yant/Patrick/Camara/HC.CEZ.out
-#SBATCH -e /nbi/Research-Groups/JIC/Levi-Yant/Patrick/Camara/HC.CEZ.err
+#SBATCH -o /nbi/Research-Groups/JIC/Levi-Yant/Patrick/Camara/HC.LUZ.out
+#SBATCH -e /nbi/Research-Groups/JIC/Levi-Yant/Patrick/Camara/HC.LUZ.err
 #SBATCH -p nbi-long
 #SBATCH -c 4
 #SBATCH -t 14-00:00
