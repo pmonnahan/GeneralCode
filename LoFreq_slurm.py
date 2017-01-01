@@ -27,9 +27,9 @@ in_bam_list.sort()
 if args.o.endswith("/") is False:
     args.o += "/"
 
-if os.path.exists(args.o + '/LoFreq/') is False:
-    os.mkdir(args.o + '/LoFreq/')
-outdir = args.o + '/LoFreq/'
+if os.path.exists(args.o + 'LoFreq/') is False:
+    os.mkdir(args.o + 'LoFreq/')
+outdir = args.o + 'LoFreq/'
 
 for bam in in_bam_list:
     bam_basename = bam.replace('.bam', '')
@@ -45,7 +45,7 @@ for bam in in_bam_list:
                   '#SBATCH --mem=' + args.mem + '\n' +
                   'source sametools-1.3.1\n' +
                   'source htslib-1.3.1\n' +
-                  '/nbi/software/testing/lofreq/2.1.2/x86_64/lofreq call --ref /nbi/Research-Groups/JIC/Levi-Yant/Patrick/Camara/ChirsutaRef/chi_v1.fa --out /nbi/Research-Groups/JIC/Levi-Yant/Patrick/Camara/' + bam_basename + '.Lofreq.vcf /nbi/Research-Groups/JIC/Levi-Yant/Patrick/Camara/aligned/' + bam_basename + '.sort.bam')
+                  '/nbi/software/testing/lofreq/2.1.2/x86_64/lofreq call --ref /nbi/Research-Groups/JIC/Levi-Yant/Patrick/Camara/ChirsutaRef/chi_v1.fa --out ' + outdir + bam_basename[:-5] + '.Lofreq.vcf ' + outdir + bam_basename + '.bam')
     sh_file.close()
 
     # check if slurm shell file should be printed or sent to NBI SLURM
