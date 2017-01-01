@@ -1,7 +1,8 @@
-!/usr/bin/env python3
+#!/usr/bin/env python3
 
 import os
 import argparse
+import subprocess
 
 parser = argparse.ArgumentParser(description='This script uses the analysis ready reads for variant calling via the GATK tool ' +
                                  'HaplotypeCaller. The cohort1 and cohort2 option should be used to separate ploidies. A seperate ' +
@@ -15,6 +16,7 @@ parser.add_argument('-o', type=str, metavar='HC_dir', default='HC/', help='Realt
 parser.add_argument('-mem', type=str, metavar='memory', default='16000', help='Total memory for each job (Mb) [16000]')
 parser.add_argument('-time', type=str, metavar='time', default='2-12:00', help='Time for job [2-12:00]')
 parser.add_argument('-print', type=str, metavar='print', default='false', help='If changed to true then shell files are printed to screen and not launched [false]')
+args = parser.parse_args()
 
 in_bam_list = []
 for file in os.listdir(args.bamdir):
@@ -32,7 +34,7 @@ outdir = args.o + '/LoFreq/'
 for bam in in_bam_list:
     bam_basename = bam.replace('.bam', '')
 
-    sh_file = open(args.o + bam_basename + '/' + bam_basename + '.sh', 'w')
+    sh_file = open(outdir + bam_basename + '.sh', 'w')
     # write slurm shell file
     sh_file.write('#!/bin/bash -e\n' +
                   '#SBATCH -J LoFreq.' + bam_basename + '\n' +
@@ -49,12 +51,11 @@ for bam in in_bam_list:
     # check if slurm shell file should be printed or sent to NBI SLURM
     if args.print == 'false':
         # send slurm job to NBI SLURM cluster
-        cmd = ('sbatch ' + args.o + bam_basename + '/' + bam_basename + '.sh')
+        cmd = ('sbatch ' + outdir + bam_basename + '.sh')
         p = subprocess.Popen(cmd, shell=True)
         sts = os.waitpid(p.pid, 0)[1]
     else:
-        file = open(args.o + bam_basename + '/' + bam_basename + '.sh', 'r')
+        file = open(outdir + bam_basename + '.sh', 'r')
         data = file.read()
         print(data)
-    os.remove(args.o + bam_basename + '/' + bam_basename + '.sh')
-count += 1
+    os.remove(outdir + bam_basename + '.sh')
