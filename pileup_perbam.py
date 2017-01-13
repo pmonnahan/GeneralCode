@@ -44,7 +44,7 @@ for bam in bam_list:
                   '#SBATCH -t '+args.time+'\n'
                   '#SBATCH --mem='+args.mem+'\n'+
                   'source samtools-1.3\n'+
-                  'samtools mpileup ' + args.bamdir + bam + ' -C ' + args.C + ' -o /nbi/Research-Groups/JIC/Levi-Yant/Patrick/Camara/pileup/perBam/' + bamname)
+                  'samtools mpileup ' + args.bamdir + bam + ' -C ' + args.C + ' -o /nbi/Research-Groups/JIC/Levi-Yant/Patrick/Camara/pileup/UniqueSM/AllChroms/' + bamname)
     sh_file.close()
 
     #check if slurm shell file should be printed or sent to NBI SLURM 
