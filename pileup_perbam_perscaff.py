@@ -37,7 +37,7 @@ for bam in bam_list:
         #write slurm shell file
         sh_file = open(args.o+bamname+'.sh','w')
         sh_file.write('#!/bin/bash -e\n'+
-                      '#SBATCH -J ProperPairs.'+bamname+'\n'+
+                      '#SBATCH -J pileup.'+bamname+'\n'+
                       '#SBATCH -o '+args.o+bamname+'.out\n'+ 
                       '#SBATCH -e '+args.o+bamname+'.err\n'+
                       '#SBATCH -p nbi-long\n'+
@@ -45,7 +45,7 @@ for bam in bam_list:
                       '#SBATCH -t '+args.time+'\n'
                       '#SBATCH --mem='+args.mem+'\n'+
                       'source samtools-1.3\n'+
-                      'samtools mpileup ' + args.bamdir + bam + ' -C ' + args.C + ' -r Chr' + str(chrom) + ' -o /nbi/Research-Groups/JIC/Levi-Yant/Patrick/Camara/pileup/UniqueSM/AllChroms' + bamname)
+                      'samtools mpileup ' + args.bamdir + bam + ' -C ' + args.C + ' -r Chr' + str(chrom) + ' -o ' args.o + bamname + ".C" + args.C)
         sh_file.close()
 
 
