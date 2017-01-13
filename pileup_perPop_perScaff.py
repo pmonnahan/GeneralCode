@@ -9,6 +9,7 @@ parser.add_argument('-bamdir', type=str, metavar='fastq_ca', default='fastq_ca/'
 parser.add_argument('-o', type=str, metavar='aligned_dir', default='aligned/', help='Realtive path to output directory [aligned/]')
 parser.add_argument('-R', type=str, metavar='reference_path', required=True, help='REQUIRED: Full path to reference genome')
 parser.add_argument('-c', type=int, metavar='num_cores', default='1', help='Number of requested cores for job [5]')
+parser.add_argument('-C', type=str, metavar='downgrade_mapping_quality', required=True, help='coefficient for downgrading mapping quality scores due to excessive mismatches; 0 disables functionality')
 parser.add_argument('-mem', type=str, metavar='memory', default='16000', help='Total memory for each job (Mb) [16000]')
 parser.add_argument('-time', type=str, metavar='time', default='0-02:00', help='Time for job [2-00:00]')
 parser.add_argument('-print', type=str, metavar='print', default='false', help='If changed to true then shell files are printed to screen and not launched [false]')
@@ -36,7 +37,7 @@ for pop in Pops:
                       '#SBATCH -t '+args.time+'\n'
                       '#SBATCH --mem='+args.mem+'\n'+
                       'source samtools-1.3\n'+
-                      'samtools mpileup ' + args.bamdir + pop + '1.sort.RG.bam ' + args.bamdir + pop + '2.sort.RG.bam ' + args.bamdir + pop + '3.sort.RG.bam ' + '-C ' + args.C + ' -r Chr' + str(chrom) + ' -o ' + args.o + pop + '.pileup')
+                      'samtools mpileup ' + args.bamdir + pop + '1.sort.RG.bam ' + args.bamdir + pop + '2.sort.RG.bam ' + args.bamdir + pop + '3.sort.RG.bam ' + '-C ' + args.C + ' -r Chr' + str(chrom) + ' -o ' + args.o + pop + '.C' + args.C + '.pileup')
         sh_file.close()
 
         #check if slurm shell file should be printed or sent to NBI SLURM 
