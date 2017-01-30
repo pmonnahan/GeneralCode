@@ -47,7 +47,7 @@ for bam in bam_list:
                       '#SBATCH -t ' + args.time + '\n' +
                       '#SBATCH --mem=' + args.mem + '\n' +
                       'source samtools-1.3\n' +
-                      'samtools mpileup -C ' + args.C + ' -f ' + args.R + '-r Chr' + str(chrom) + ' -o ' + args.o + bamname + ".C" + args.C + ".Chr" + str(chrom) + ".pileup" + args.bamdir + bam)
+                      'samtools mpileup -C ' + args.C + ' -f ' + args.R + ' -r Chr' + str(chrom) + ' -o ' + args.o + bamname + ".C" + args.C + ".Chr" + str(chrom) + ".pileup" + args.bamdir + bam)
         sh_file.close()
 
 

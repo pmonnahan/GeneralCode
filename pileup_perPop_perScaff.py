@@ -40,7 +40,7 @@ for pop in Pops:
                       '#SBATCH -t ' + args.time + '\n' +
                       '#SBATCH --mem=' + args.mem + '\n' +
                       'source samtools-1.3\n' +
-                      'samtools mpileup -C ' + args.C + ' -r Chr' + str(chrom) + ' -f ' + args. R + ' -o ' + args.o + pop + '.C' + args.C + ".Chr" + str(chrom) + '.pileup' + args.bamdir + pop + '1.sort.CRG.bam ' + args.bamdir + pop + '2.sort.CRG.bam ' + args.bamdir + pop + '3.sort.CRG.bam')
+                      'samtools mpileup -C ' + args.C + ' -r Chr' + str(chrom) + ' -f ' + args. R + ' -o ' + args.o + pop + '.C' + args.C + ".Chr" + str(chrom) + '.pileup ' + args.bamdir + pop + '1.sort.CRG.bam ' + args.bamdir + pop + '2.sort.CRG.bam ' + args.bamdir + pop + '3.sort.CRG.bam')
         sh_file.close()
 
         # check if slurm shell file should be printed or sent to NBI SLURM
