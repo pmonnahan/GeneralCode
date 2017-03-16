@@ -7,7 +7,7 @@ parser.add_argument('-v', type=str, metavar='vcf_directory', required=True, help
 parser.add_argument('-dp', type=str, metavar='site_depth_cutoff', required=True, default='2704', help='')
 parser.add_argument('-t', type=str, metavar='time', required=False, default='0-06:00', help='')
 parser.add_argument('-mem', type=int, metavar='memory', required=False, default='8000', help='')
-parser.add_argument('-p', type=int, metavar='Print?', required=False, default=False, help='')
+parser.add_argument('-p', type=bool, metavar='Print?', required=False, default=False, help='')
 
 args = parser.parse_args()
 
