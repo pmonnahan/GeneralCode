@@ -11,7 +11,7 @@ parser.add_argument('-p', type=bool, metavar='Print?', required=False, default=F
 
 args = parser.parse_args()
 
-mem1 = args.mem / 1000
+mem1 = int(args.mem / 1000)
 vcf_list = []
 vcf_basenames = []
 
