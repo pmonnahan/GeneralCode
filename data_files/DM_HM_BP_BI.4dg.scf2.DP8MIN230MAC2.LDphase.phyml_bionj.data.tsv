@@ -1,0 +1,4 @@
+#topo1 (DSC,((DWC,TWC),TSC));
+#topo2 (DSC,((DWC,TSC),TWC));
+#topo3 (DSC,(DWC,(TWC,TSC)));
+topo1	topo2	topo3
