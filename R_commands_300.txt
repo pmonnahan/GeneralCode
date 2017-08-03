@@ -1,0 +1,885 @@
+R_commands_300:
+
+library(vcfR)
+
+vcfR2genlight.tetra <- function (x) 
+{
+  bi <- is.biallelic(x)
+  if (sum(!bi) > 0) {
+    msg <- paste("Found", sum(!bi), "loci with more than two alleles.")
+    msg <- c(msg, "\n", paste("Objects of class genlight only support loci with two alleles."))
+    msg <- c(msg, "\n", paste(sum(!bi), "loci will be omitted from the genlight object."))
+    warning(msg)
+    x <- x[bi, ]
+  }
+  CHROM <- x@fix[, "CHROM"]
+  POS <- x@fix[, "POS"]
+  ID <- x@fix[, "ID"]
+  x <- extract.gt(x)
+  x[x == "0|0"] <- 0
+  x[x == "0|1"] <- 1
+  x[x == "1|0"] <- 1
+  x[x == "1|1"] <- 2
+  x[x == "0/0"] <- 0
+  x[x == "0/1"] <- 1
+  x[x == "1/1"] <- 2
+  x[x == "1/1/1/1"] <- 4
+  x[x == "0/1/1/1"] <- 3
+  x[x == "0/0/1/1"] <- 2
+  x[x == "0/0/0/1"] <- 1
+  x[x == "0/0/0/0"] <- 0
+  x <- adegenet::as.genlight(t(x))
+  adegenet::chromosome(x) <- CHROM
+  adegenet::position(x) <- POS
+  adegenet::locNames(x) <- ID
+  x
+}
+
+
+Usage example:
+
+vcf_Scaf1<- read.vcfR(file.choose(), nrows=699376)      # read in your vcf using vcfR
+Scaf1 <- vcfR2genlight.tetra(vcf_Scaf1) # Will convert your vcf into a genlight correctly for both diploids and polyploids.
+
+
+##Read depth filtration
+
+#Used vcftools --site-depth to get summed depth across individuals for ALL sites for all scaffolds ('Genotyped' version of vcf's).
+scaf6=read.table("~/Google Drive/300/RD.scaf6.ldepth",head=T)
+
+#Used following command to get mode of distributions
+Mode <- function(x) {
+     ux <- unique(x)
+     ux[which.max(tabulate(match(x, ux)))]
+ }
+ 
+ #Finds mode of distribution
+> Mode(scaf5[scaf5$SUM_DEPTH>1500,]$SUM_DEPTH)
+[1] 3960
+> Mode(scaf1[scaf1$SUM_DEPTH>1000,]$SUM_DEPTH)
+[1] 3957
+> Mode(scaf2[scaf2$SUM_DEPTH>1000,]$SUM_DEPTH)
+[1] 3900
+> Mode(scaf3[scaf3$SUM_DEPTH>1000,]$SUM_DEPTH)
+[1] 4113
+> Mode(scaf4[scaf4$SUM_DEPTH>1000,]$SUM_DEPTH)
+[1] 3999
+> Mode(scaf5[scaf5$SUM_DEPTH>1000,]$SUM_DEPTH)
+[1] 3960
+> Mode(scaf6[scaf6$SUM_DEPTH>1000,]$SUM_DEPTH)
+[1] 3990
+> Mode(scaf7[scaf7$SUM_DEPTH>1000,]$SUM_DEPTH)
+[1] 3981
+> Mode(scaf8[scaf8$SUM_DEPTH>1000,]$SUM_DEPTH)
+[1] 3972
+
+
+grid.arrange(ggplot(scaf1,aes(x=SUM_DEPTH))+geom_histogram(bins=100)+xlim(c(0,10000))+ggtitle("Scaf1")+ylim(c(0,2000000)),
+ggplot(scaf2,aes(x=SUM_DEPTH))+geom_histogram(bins=100)+xlim(c(0,10000))+ggtitle("Scaf2")+ylim(c(0,2000000)),
+ggplot(scaf3,aes(x=SUM_DEPTH))+geom_histogram(bins=100)+xlim(c(0,10000))+ggtitle("Scaf3")+ylim(c(0,2000000)),
+ggplot(scaf4,aes(x=SUM_DEPTH))+geom_histogram(bins=100)+xlim(c(0,10000))+ggtitle("Scaf4")+ylim(c(0,2000000)),
+ggplot(scaf5,aes(x=SUM_DEPTH))+geom_histogram(bins=100)+xlim(c(0,10000))+ggtitle("Scaf5")+ylim(c(0,2000000)),
+ggplot(scaf6,aes(x=SUM_DEPTH))+geom_histogram(bins=100)+xlim(c(0,10000))+ggtitle("Scaf6")+ylim(c(0,2000000)),
+ggplot(scaf7,aes(x=SUM_DEPTH))+geom_histogram(bins=100)+xlim(c(0,10000))+ggtitle("Scaf7")+ylim(c(0,2000000)),
+ggplot(scaf8,aes(x=SUM_DEPTH))+geom_histogram(bins=100)+xlim(c(0,10000))+ggtitle("Scaf8")+ylim(c(0,2000000)),nrow=2)
+
+
+#This method finds most common bin from histogram.  All point to ~4000 as the mode.
+xx=ggplot(scaf1[scaf1$SUM_DEPTH>1000,],aes(x=SUM_DEPTH))+geom_histogram(bins=100)+xlim(c(0,10000))+ggtitle("Scaf1")+ylim(c(0,2000000))
+jj=ggplot_build(xx)$data[[1]]
+jj=jj[order(-jj$count),]
+mean(c(jj[1,]$xmin,jj[1,]$xmax))
+[1] 3939.394
+
+xx=ggplot(scaf2[scaf2$SUM_DEPTH>1000,],aes(x=SUM_DEPTH))+geom_histogram(bins=100)+xlim(c(0,10000))+ggtitle("Scaf1")+ylim(c(0,2000000))
+jj=ggplot_build(xx)$data[[1]]
+jj=jj[order(-jj$count),]
+mean(c(jj[1,]$xmin,jj[1,]$xmax))
+[1] 4040.404
+
+xx=ggplot(scaf3[scaf3$SUM_DEPTH>1000,],aes(x=SUM_DEPTH))+geom_histogram(bins=100)+xlim(c(0,10000))+ggtitle("Scaf1")+ylim(c(0,2000000))
+jj=ggplot_build(xx)$data[[1]]
+jj=jj[order(-jj$count),]
+mean(c(jj[1,]$xmin,jj[1,]$xmax))
+[1] 4040.404
+
+xx=ggplot(scaf4[scaf4$SUM_DEPTH>1000,],aes(x=SUM_DEPTH))+geom_histogram(bins=100)+xlim(c(0,10000))+ggtitle("Scaf1")+ylim(c(0,2000000))
+jj=ggplot_build(xx)$data[[1]]
+jj=jj[order(-jj$count),]
+mean(c(jj[1,]$xmin,jj[1,]$xmax))
+[1] 3939.394
+
+xx=ggplot(scaf5[scaf5$SUM_DEPTH>1000,],aes(x=SUM_DEPTH))+geom_histogram(bins=100)+xlim(c(0,10000))+ggtitle("Scaf1")+ylim(c(0,2000000))
+jj=ggplot_build(xx)$data[[1]]
+jj=jj[order(-jj$count),]
+mean(c(jj[1,]$xmin,jj[1,]$xmax))
+[1] 4040.404
+
+xx=ggplot(scaf6[scaf6$SUM_DEPTH>1000,],aes(x=SUM_DEPTH))+geom_histogram(bins=100)+xlim(c(0,10000))+ggtitle("Scaf1")+ylim(c(0,2000000))
+jj=ggplot_build(xx)$data[[1]]
+jj=jj[order(-jj$count),]
+mean(c(jj[1,]$xmin,jj[1,]$xmax))
+[1] 3939.394
+
+xx=ggplot(scaf7[scaf7$SUM_DEPTH>1000,],aes(x=SUM_DEPTH))+geom_histogram(bins=100)+xlim(c(0,10000))+ggtitle("Scaf1")+ylim(c(0,2000000))
+jj=ggplot_build(xx)$data[[1]]
+jj=jj[order(-jj$count),]
+mean(c(jj[1,]$xmin,jj[1,]$xmax))
+[1] 4040.404
+
+xx=ggplot(scaf8[scaf8$SUM_DEPTH>1000,],aes(x=SUM_DEPTH))+geom_histogram(bins=100)+xlim(c(0,10000))+ggtitle("Scaf1")+ylim(c(0,2000000))
+jj=ggplot_build(xx)$data[[1]]
+jj=jj[order(-jj$count),]
+mean(c(jj[1,]$xmin,jj[1,]$xmax))
+[1] 3939.394
+
+LD CALCULATIONS--PLOTTING HISTOGRAMS using imported histogram file from LD.cpp
+
+ld.dips['tot']=with(ld.dips,ave(V5,V2,FUN=sum)) #finds the total number of observations for all V2 values (upper distance limit)
+ld.dips['freq']=ld.dips$V5/ld.dips$tot
+ld.dips['mid']=(ld.dips$V3+ld.dips$V4)/2
+ld.dips['midXfreq']=ld.dips$mid*ld.dips$freq
+
+ggplot(ld.dips,aes(x=V4,y=freq,fill=V2))+geom_bar(stat="identity",position='dodge') #not a great visualization
+
+xx.dips=tapply(ld.dips$midXfreq,ld.dips$V2,sum)
+means.dips=data.frame(key=as.numeric(names(xx.dips)),value=xx.dips)
+means.dips['ploidy']='Are.dips'
+ggplot(means.dips,aes(x=key,y=value))+geom_point()+scale_x_continuous(trans=log_trans(),breaks=log_breaks(9))+ylab("r_squared")+xlab("Distance")+ggtitle("Diploids")
+
+ld.tets['tot']=with(ld.tets,ave(V5,V2,FUN=sum)) #finds the total number of observations for all V2 values (upper distance limit)
+ld.tets['freq']=ld.tets$V5/ld.tets$tot
+ld.tets['mid']=(ld.tets$V3+ld.tets$V4)/2
+ld.tets['midXfreq']=ld.tets$mid*ld.tets$freq
+
+ggplot(ld.tets,aes(x=V4,y=freq,fill=V2))+geom_bar(stat="identity",position='dodge') #not a great visualization
+
+xx.tets=tapply(ld.tets$midXfreq,ld.tets$V2,sum)
+means.tets=data.frame(key=as.numeric(names(xx.tets)),value=xx.tets)
+means.tets['ploidy']='Are.tets'
+ggplot(means.tets,aes(x=key,y=value))+geom_point()+scale_x_continuous(trans=log_trans(),breaks=log_breaks(9))+ylab("r_squared")+xlab("Distance")+ggtitle("Tetraploids")
+
+ggplot(means.tets,aes(x=key,y=value))+geom_point()
+
+means=rbind(means.dips,means.tets)
+ggplot(means,aes(x=key,y=value,colour=ploidy))+geom_point()+scale_x_continuous(trans=log_trans(),breaks=log_breaks(9))+ylab("r_squared")+xlab("Distance")
+
+17-1-17 #Creates graph that plots all population and averages within ploidies
+all=rbind(dips,tets)
+slim=all[all$Population!="HNE",] # only keep populations with same sample size in slim.
+dips=slim[slim$Ploidy==2,]
+tets=slim[slim$Ploidy==4,]
+xx.dips=tapply(dips$R2,dips$End,mean)
+means.tets=data.frame(key=as.numeric(names(xx.tets)),value=xx.tets)
+means.dips=data.frame(key=as.numeric(names(xx.dips)),value=xx.dips)
+ps=rbind(means.tets,means.dips)
+fig=ggplot(slim,aes(y=R2,x=End/1000,color=Population,linetype=Ploidy))+geom_line(alpha=0.4)+geom_line(data=ps,aes(y=value,x=key/1000,linetype=Ploidy),color='black')+scale_x_continuous(trans=log_trans(),breaks=log_breaks(9),labels = comma)+ylab(expression(r^" 2"))+xlab("Distance (kb)")+ theme_bw() + theme(panel.border = element_blank(), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line.x = element_line(colour = "black"), axis.line.y = element_line(colour = "black"),axis.title.y = element_text(size = 18))
+
+
+> t.dips=read.table("~/Documents/Research/300/All.DownSample.R2.txt",head=T)
+> t.tets=read.table("~/Documents/Research/300/All.Tets.DownSample.R2.txt",head=T)
+
+fig.ds=ggplot(all1,aes(y=R2,x=End/1000,color=Population,linetype=Ploidy))+geom_line(alpha=0.4)+geom_line(data=means,aes(y=value,x=key/1000,linetype=Ploidy),color='black')+scale_x_continuous(trans=log_trans(),breaks=log_breaks(9),labels = comma)+ylab(expression(r^" 2"))+xlab("Distance (kb)")+ theme_bw() + theme(panel.border = element_blank(), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line.x = element_line(colour = "black"), axis.line.y = element_line(colour = "black"),axis.title.y = element_text(size = 18))
+
+# Values differ between downsample and not downsampled data.  I believe it is because I used different values for minimum fraction of individuals genotyped.
+
+21-2-17
+library(stringr)
+ld['pop']=str_split_fixed(ld$V1,"/",14)[,11]
+ld['scaff']=str_split_fixed(ld$V1,"_",9)[,7]
+ld['WS']=str_split_fixed(ld$V1,"_",15)[,9]
+means=aggregate(V9 ~ V2 + scaff + WS,data=ld,mean)
+
+scaf2=ggplot(ld[ld$scaff==2 & ld$WS=='ws1000kb',],aes(y=V9,x=V5,color=pop,linetype=V2))+geom_line(alpha=0.4)+geom_line(data=means[means$scaff==2 & means$WS=='ws1000kb',],aes(y=V9,x=V5,linetype=V2),color='black')+ylab(expression(r^" 2"))+xlab("Distance (kb)")+ theme_bw() + theme(panel.border = element_blank(), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line.x = element_line(colour = "black"), axis.line.y = element_line(colour = "black"),axis.title.y = element_text(size = 18))+ggtitle("Scaf 2")
+scaf8=ggplot(ld[ld$scaff==8 & ld$WS=='ws1000kb',],aes(y=V9,x=V5,color=pop,linetype=V2))+geom_line(alpha=0.4)+geom_line(data=means[means$scaff==8 & means$WS=='ws1000kb',],aes(y=V9,x=V5,linetype=V2),color='black')+ylab(expression(r^" 2"))+xlab("Distance (kb)")+ theme_bw() + theme(panel.border = element_blank(), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line.x = element_line(colour = "black"), axis.line.y = element_line(colour = "black"),axis.title.y = element_text(size = 18))+ggtitle("Scaf 8")
+scaf7=ggplot(ld[ld$scaff==7 & ld$WS=='ws1000kb',],aes(y=V9,x=V5,color=pop,linetype=V2))+geom_line(alpha=0.4)+geom_line(data=means[means$scaff==7 & means$WS=='ws1000kb',],aes(y=V9,x=V5,linetype=V2),color='black')+ylab(expression(r^" 2"))+xlab("Distance (kb)")+ theme_bw() + theme(panel.border = element_blank(), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line.x = element_line(colour = "black"), axis.line.y = element_line(colour = "black"),axis.title.y = element_text(size = 18))+ggtitle("Scaf 7")
+scaf6=ggplot(ld[ld$scaff==6 & ld$WS=='ws1000kb',],aes(y=V9,x=V5,color=pop,linetype=V2))+geom_line(alpha=0.4)+geom_line(data=means[means$scaff==6 & means$WS=='ws1000kb',],aes(y=V9,x=V5,linetype=V2),color='black')+ylab(expression(r^" 2"))+xlab("Distance (kb)")+ theme_bw() + theme(panel.border = element_blank(), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line.x = element_line(colour = "black"), axis.line.y = element_line(colour = "black"),axis.title.y = element_text(size = 18))+ggtitle("Scaf 6")
+scaf5=ggplot(ld[ld$scaff==5 & ld$WS=='ws1000kb',],aes(y=V9,x=V5,color=pop,linetype=V2))+geom_line(alpha=0.4)+geom_line(data=means[means$scaff==5 & means$WS=='ws1000kb',],aes(y=V9,x=V5,linetype=V2),color='black')+ylab(expression(r^" 2"))+xlab("Distance (kb)")+ theme_bw() + theme(panel.border = element_blank(), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line.x = element_line(colour = "black"), axis.line.y = element_line(colour = "black"),axis.title.y = element_text(size = 18))+ggtitle("Scaf 5")
+scaf4=ggplot(ld[ld$scaff==4 & ld$WS=='ws1000kb',],aes(y=V9,x=V5,color=pop,linetype=V2))+geom_line(alpha=0.4)+geom_line(data=means[means$scaff==4 & means$WS=='ws1000kb',],aes(y=V9,x=V5,linetype=V2),color='black')+ylab(expression(r^" 2"))+xlab("Distance (kb)")+ theme_bw() + theme(panel.border = element_blank(), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line.x = element_line(colour = "black"), axis.line.y = element_line(colour = "black"),axis.title.y = element_text(size = 18))+ggtitle("Scaf 4")
+scaf1=ggplot(ld[ld$scaff==1 & ld$WS=='ws1000kb',],aes(y=V9,x=V5,color=pop,linetype=V2))+geom_line(alpha=0.4)+geom_line(data=means[means$scaff==1 & means$WS=='ws1000kb',],aes(y=V9,x=V5,linetype=V2),color='black')+ylab(expression(r^" 2"))+xlab("Distance (kb)")+ theme_bw() + theme(panel.border = element_blank(), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line.x = element_line(colour = "black"), axis.line.y = element_line(colour = "black"),axis.title.y = element_text(size = 18))+ggtitle("Scaf 1")
+scaf3=ggplot(ld[ld$scaff==3 & ld$WS=='ws1000kb',],aes(y=V9,x=V5,color=pop,linetype=V2))+geom_line(alpha=0.4)+geom_line(data=means[means$scaff==3 & means$WS=='ws1000kb',],aes(y=V9,x=V5,linetype=V2),color='black')+ylab(expression(r^" 2"))+xlab("Distance (kb)")+ theme_bw() + theme(panel.border = element_blank(), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line.x = element_line(colour = "black"), axis.line.y = element_line(colour = "black"),axis.title.y = element_text(size = 18))+ggtitle("Scaf 3")
+scaf2a=ggplot(ld[ld$scaff==2 & ld$WS=='ws100kb',],aes(y=V9,x=V5,color=pop,linetype=V2))+geom_line(alpha=0.4)+geom_line(data=means[means$scaff==2 & means$WS=='ws100kb',],aes(y=V9,x=V5,linetype=V2),color='black')+ylab(expression(r^" 2"))+xlab("Distance (kb)")+ theme_bw() + theme(panel.border = element_blank(), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line.x = element_line(colour = "black"), axis.line.y = element_line(colour = "black"),axis.title.y = element_text(size = 18))+ggtitle("Scaf 2")
+scaf8a=ggplot(ld[ld$scaff==8 & ld$WS=='ws100kb',],aes(y=V9,x=V5,color=pop,linetype=V2))+geom_line(alpha=0.4)+geom_line(data=means[means$scaff==8 & means$WS=='ws100kb',],aes(y=V9,x=V5,linetype=V2),color='black')+ylab(expression(r^" 2"))+xlab("Distance (kb)")+ theme_bw() + theme(panel.border = element_blank(), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line.x = element_line(colour = "black"), axis.line.y = element_line(colour = "black"),axis.title.y = element_text(size = 18))+ggtitle("Scaf 8")
+scaf7a=ggplot(ld[ld$scaff==7 & ld$WS=='ws100kb',],aes(y=V9,x=V5,color=pop,linetype=V2))+geom_line(alpha=0.4)+geom_line(data=means[means$scaff==7 & means$WS=='ws100kb',],aes(y=V9,x=V5,linetype=V2),color='black')+ylab(expression(r^" 2"))+xlab("Distance (kb)")+ theme_bw() + theme(panel.border = element_blank(), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line.x = element_line(colour = "black"), axis.line.y = element_line(colour = "black"),axis.title.y = element_text(size = 18))+ggtitle("Scaf 7")
+scaf6a=ggplot(ld[ld$scaff==6 & ld$WS=='ws100kb',],aes(y=V9,x=V5,color=pop,linetype=V2))+geom_line(alpha=0.4)+geom_line(data=means[means$scaff==6 & means$WS=='ws100kb',],aes(y=V9,x=V5,linetype=V2),color='black')+ylab(expression(r^" 2"))+xlab("Distance (kb)")+ theme_bw() + theme(panel.border = element_blank(), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line.x = element_line(colour = "black"), axis.line.y = element_line(colour = "black"),axis.title.y = element_text(size = 18))+ggtitle("Scaf 6")
+scaf5a=ggplot(ld[ld$scaff==5 & ld$WS=='ws100kb',],aes(y=V9,x=V5,color=pop,linetype=V2))+geom_line(alpha=0.4)+geom_line(data=means[means$scaff==5 & means$WS=='ws100kb',],aes(y=V9,x=V5,linetype=V2),color='black')+ylab(expression(r^" 2"))+xlab("Distance (kb)")+ theme_bw() + theme(panel.border = element_blank(), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line.x = element_line(colour = "black"), axis.line.y = element_line(colour = "black"),axis.title.y = element_text(size = 18))+ggtitle("Scaf 5")
+scaf4a=ggplot(ld[ld$scaff==4 & ld$WS=='ws100kb',],aes(y=V9,x=V5,color=pop,linetype=V2))+geom_line(alpha=0.4)+geom_line(data=means[means$scaff==4 & means$WS=='ws100kb',],aes(y=V9,x=V5,linetype=V2),color='black')+ylab(expression(r^" 2"))+xlab("Distance (kb)")+ theme_bw() + theme(panel.border = element_blank(), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line.x = element_line(colour = "black"), axis.line.y = element_line(colour = "black"),axis.title.y = element_text(size = 18))+ggtitle("Scaf 4")
+scaf1a=ggplot(ld[ld$scaff==1 & ld$WS=='ws100kb',],aes(y=V9,x=V5,color=pop,linetype=V2))+geom_line(alpha=0.4)+geom_line(data=means[means$scaff==1 & means$WS=='ws100kb',],aes(y=V9,x=V5,linetype=V2),color='black')+ylab(expression(r^" 2"))+xlab("Distance (kb)")+ theme_bw() + theme(panel.border = element_blank(), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line.x = element_line(colour = "black"), axis.line.y = element_line(colour = "black"),axis.title.y = element_text(size = 18))+ggtitle("Scaf 1")
+scaf3a=ggplot(ld[ld$scaff==3 & ld$WS=='ws100kb',],aes(y=V9,x=V5,color=pop,linetype=V2))+geom_line(alpha=0.4)+geom_line(data=means[means$scaff==3 & means$WS=='ws100kb',],aes(y=V9,x=V5,linetype=V2),color='black')+ylab(expression(r^" 2"))+xlab("Distance (kb)")+ theme_bw() + theme(panel.border = element_blank(), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line.x = element_line(colour = "black"), axis.line.y = element_line(colour = "black"),axis.title.y = element_text(size = 18))+ggtitle("Scaf 3")
+
+03-04-17 Regression analysis
+gd=read.table("~/Documents/Research/300/GeneDensity_WS50.0k.txt",head=T)
+m=read.table("~/Documents/Research/300/Missigness_WS50k_DP8.txt",head=T)
+dg=read.table("~/Documents/Research/300/AllPops_4dg_5ind_WS50.0k_MS1_WPM_New.txt",head=T)
+ns=read.table("~/Documents/Research/300/AllPops_NSynAll_WS50.0k_MS1_BPM_New.txt",head=T) # Had to add extra field to Genome entries because bpm.py did not add Dxy to Genome entry
+ns$outname=as.character(ns$outname)
+ns['pop1']=substr(ns$outname,1,3)
+ns['pop2']=substr(ns$outname,4,6)
+dg=dg
+pop1=list(unique(ns$pop1))
+pop2=list(unique(ns$pop2))
+pops=append(unlist(pop1)A,unlist(pop2))
+pops=unique(pops)
+
+
+
+
+
+Ns=data.frame()
+for(i in 1:length(pops)){
+     xx=ns[ns$pop1==pops[i]|ns$pop2==pops[i],]
+     yy=merge(aggregate(dxy~scaff+end,data=xx,mean),aggregate(Rho~scaff+end,data=xx,mean),by=c("scaff","end"))
+     yy=merge(yy,aggregate(Fst~scaff+end,data=xx,mean),by=c("scaff","end"))
+     yy['pop']=pops[i]
+     Ns=rbind(Ns,yy)
+ }
+
+
+Ns=Ns[Ns$scaff!='Genome',]
+dg=dg[dg$scaff!='Genome',]
+dg['sqrt_div']=sqrt(dg$Diversity)
+dg=dg[!duplicated(dg[,c("pop","scaff","end")]),]
+dg.avg=aggregate(sqrt_div~scaff+end,data=dg,mean)
+Ns=merge(Ns,dg[,c("pop","ploidy","scaff","end")],by=c("pop","scaff","end"))
+Ns.avg=aggregate(dxy~scaff+end,data=Ns,mean)
+dg.avg.dip=aggregate(sqrt_div~scaff+end,data=dg[dg$ploidy==2,],mean)
+Ns.avg.dip=aggregate(dxy~scaff+end,data=Ns[Ns$ploidy==2,],mean)
+dg.avg.tet=aggregate(sqrt_div~scaff+end,data=dg[dg$ploidy==4,],mean)
+Ns.avg.tet=aggregate(dxy~scaff+end,data=Ns[Ns$ploidy==4,],mean)
+
+data1=merge(Ns,dg,by=c("scaff","end","pop","ploidy"))
+data1=merge(data1,gd,by=c("scaff","end"))
+data1=merge(data1,m,by=c("scaff","end"))
+data1['sqrt_div']=sqrt(data1$Diversity)
+data.avg=merge(Ns.avg,dg.avg,by=c("scaff","end"))
+data.avg=merge(data.avg,gd,by=c("scaff","end"))
+data.avg=merge(data.avg,m,by=c("scaff","end"))
+dip.avg=merge(Ns.avg.dip,dg.avg.dip,by=c("scaff","end"))
+dip.avg=merge(dip.avg,gd,by=c("scaff","end"))
+dip.avg=merge(dip.avg,m,by=c("scaff","end"))
+tet.avg=merge(Ns.avg.tet,dg.avg.tet,by=c("scaff","end"))
+tet.avg=merge(tet.avg,gd,by=c("scaff","end"))
+tet.avg=merge(tet.avg,m,by=c("scaff","end"))
+
+#All together analysis
+data1$pop=as.factor(data1$pop)
+data1$ploidy=as.factor(data1$ploidy)
+contrasts(data1$ploidy)=contr.poly(2)
+contrasts(data1$pop)=contr.poly(36) 
+reg=lmer(sqrt_div ~ dxy + GD + missing + ploidy + dxy:ploidy + (1 | pop:ploidy),data=data1[data1$num_snps>=10,])
+reg2=lmer(sqrt_div ~ dxy + GD + missing + ploidy + (1 | pop:ploidy),data=data1[data1$num_snps>=10,])
+reg1=lmer(sqrt_div ~ dxy + GD + missing + (1|pop) + dxy:pop,data=data1[data1$num_snps>=10,])
+
+reg.avg=lm(sqrt_div ~ dxy + GD + missing, data=data.avg)
+reg.dip.avg=lm(sqrt_div ~ dxy + GD + missing, data=dip.avg)
+reg.tet.avg=lm(sqrt_div ~ dxy + GD + missing, data=tet.avg)
+
+Anova(reg,type="III")
+Anova(reg2,type="III")
+Anova(reg1,type="III")
+Anova(reg.avg,type="III")
+Anova(reg.dip.avg,type="III")
+Anova(reg.tet.avg,type="III")
+Anova(reg.d,type="III")
+Anova(reg.d1,type="III")
+Anova(reg.t,type="III")
+
+
+
+
+dips=data1[data1$ploidy==2.0,]
+tets=data1[data1$ploidy==4.0,]
+dips$pop=factor(dips$pop)
+tets$pop=factor(tets$pop)
+contrasts(dips$pop)=contr.poly(14) 
+contrasts(tets$pop)=contr.poly(22)
+reg.d=lm(sqrt_div ~ dxy + GD + missing + pop + pop:dxy,data=dips[dips$num_snps>=10,])
+reg.d1=lm(sqrt_div ~ dxy + GD + missing + pop,data=dips[dips$num_snps>=10,])
+reg.t=lm(sqrt_div ~ dxy + GD + missing + pop + pop:dxy,data=tets[tets$num_snps>=10,])
+
+ggplot(data=tets,aes(x=dxy,y=sqrt_div,color=pop))+geom_smooth(method="lm",fill=NA)+ggtitle("Tetraploids")+ylab("4dg Diversity")+xlab("Avg. Pairwise Nonsyn. Divergence")+theme_bw()+theme(axis.title.x=element_text(size=16),axis.title.y=element_text(size=16),axis.text.x=element_text(size=14),axis.text.y=element_text(size=14),plot.title=element_text(size=16),legend.title=element_text(size=14),legend.text=element_text(size=12))
+ggplot(data=dips,aes(x=dxy,y=sqrt_div,color=pop))+geom_smooth(method="lm",fill=NA)+ggtitle("Diploids")+ylab("4dg Diversity")+xlab("Avg. Pairwise Nonsyn. Divergence")+theme_bw()+theme(axis.title.x=element_text(size=16),axis.title.y=element_text(size=16),axis.text.x=element_text(size=14),axis.text.y=element_text(size=14),plot.title=element_text(size=16),legend.title=element_text(size=14),legend.text=element_text(size=12))
+ggplot(data=tets,aes(x=dxy,y=sqrt_div,color=pop,linetype=ploidy))+geom_smooth(method="lm",fill=NA)+geom_smooth(data=dips,aes(x=dxy,y=sqrt_div,color=pop),fill=NA,method="lm")+ylab("4dg Diversity")+xlab("Avg. Pairwise Nonsyn. Divergence")+theme_bw()+theme(axis.title.x=element_text(size=16),axis.title.y=element_text(size=16),axis.text.x=element_text(size=14),axis.text.y=element_text(size=14),plot.title=element_text(size=16),legend.title=element_text(size=14),legend.text=element_text(size=12))
+
+#23-04-17
+
+wp4dg.5=read.table("~/Documents/Research/300/AllPops_4dg_5ind_WS50.0k_MS1_WPM_New.txt",head=T)
+wp4dg.7=read.table("~/Documents/Research/300/AllPops_4dg_7ind_WS50.0k_MS1_WPM_New.txt",head=T)
+wpNSyn.5=read.table("~/Documents/Research/300/AllPops_NSynAll_5ind_WS50.0k_MS1_WPM_New.txt",head=T)
+wpNSyn.7=read.table("~/Documents/Research/300/AllPops_NSynAll_7ind_WS50.0k_MS1_WPM_New.txt",head=T)
+wpAll.5=read.table("~/Documents/Research/300/AllPops_All_5ind_WS50.0k_MS1_WPM_New.txt",head=T)
+wpAll.7=read.table("~/Documents/Research/300/AllPops_All_7ind_WS50.0k_MS1_WPM_New.txt",head=T)
+
+bpNSyn=read.table("~/Documents/Research/300/AllPops_NSynAll_WS50.0k_MS1_BPM_New.txt",head=T)
+bp4dg=read.table("~/Documents/Research/300/AllPops_4dg_WS50.0k_MS1_BPM_New.txt",head=T)
+bpAll=read.table("~/Documents/Research/300/AllPops_All_WS50.0k_MS1_BPM_New.txt",head=T)
+
+wl4dg.1=read.table("~/Documents/Research/300/Fils1stLineages_4dg_WS50k_MS10_11ind_WPM.txt",head=T)
+wl4dg.2=read.table("~/Documents/Research/300/Fils2ndLineages_4dg_WS50k_MS10_11ind_WPM.txt",head=T)
+wlNSyn.1=read.table("~/Documents/Research/300/Fils1stLineages_NSynAll_WS50k_MS10_11ind_WPM.txt",head=T)
+wlNSyn.2=read.table("~/Documents/Research/300/Fils2ndLineages_NSynAll_WS50k_MS10_11ind_WPM.txt",head=T)
+wlAll.1=read.table("~/Documents/Research/300/Fils1stLineages_PASS_WS50k_MS10_11ind_WPM.txt",head=T)
+wlAll.2=read.table("~/Documents/Research/300/Fils2ndLineages_PASS_WS50k_MS10_11ind_WPM.txt",head=T)
+
+blNSyn=read.table("~/Documents/Research/300/Fils1stLineages_NSynAll_WS50k_MS10_BPM.txt",head=T)
+bl4dg=read.table("~/Documents/Research/300/Fils1stLineages_4dg_WS50k_MS10_BPM.txt",head=T)
+blAll=read.table("~/Documents/Research/300/Fils1stLineages_PASS_WS50k_MS10_BPM.txt",head=T)
+
+wp4dg.5['Data']="4dg"
+wp4dg.7['Data']="4dg"
+wl4dg.1['Data']="4dg"
+wl4dg.2['Data']="4dg"
+wpNSyn.5['Data']="NSyn"
+wpNSyn.7['Data']="NSyn"
+wlNSyn.1['Data']="NSyn"
+wlNSyn.2['Data']="NSyn"
+wpAll.5['Data']="All"
+wpAll.7['Data']="All"
+wlAll.1['Data']="All"
+wlAll.2['Data']="All"
+
+wp4dg.5['Data']="4dg"
+wp4dg.7['Data']="4dg"
+wl4dg.1['Data']="4dg"
+wl4dg.2['Data']="4dg"
+wpNSyn.5['Data']="NSyn"
+wpNSyn.7['Data']="NSyn"
+wlNSyn.1['Data']="NSyn"
+wlNSyn.2['Data']="NSyn"
+wpAll.5['Data']="All"
+wpAll.7['Data']="All"
+wlAll.1['Data']="All"
+wlAll.2['Data']="All"
+
+
+bpAll$outname=as.character(bpAll$outname)
+bpAll['pop1']=substr(bpAll$outname,1,3)
+bpAll['pop2']=substr(bpAll$outname,4,6)
+blAll$outname=as.character(blAll$outname)
+blAll['pop1']=substr(blAll$outname,1,3)
+blAll['pop2']=substr(blAll$outname,4,6)
+bp4dg$outname=as.character(bp4dg$outname)
+bp4dg['pop1']=substr(bp4dg$outname,1,3)
+bp4dg['pop2']=substr(bp4dg$outname,4,6)
+bl4dg$outname=as.character(bl4dg$outname)
+bl4dg['pop1']=substr(bl4dg$outname,1,3)
+bl4dg['pop2']=substr(bl4dg$outname,4,6)
+bpNSyn$outname=as.character(bpNSyn$outname)
+bpNSyn['pop1']=substr(bpNSyn$outname,1,3)
+bpNSyn['pop2']=substr(bpNSyn$outname,4,6)
+blNSyn$outname=as.character(blNSyn$outname)
+blNSyn['pop1']=substr(blNSyn$outname,1,3)
+blNSyn['pop2']=substr(blNSyn$outname,4,6)
+bpAll['Data']="PASS"
+bp4dg['Data']="4dg"
+bpNSyn['Data']="NSyn"
+
+blAll['Data']="PASS"
+bl4dg['Data']="4dg"
+blNSyn['Data']="NSyn"
+
+
+wp.gen=rbind(wpAll.5[wpAll.5$scaff=="Genome",],wpNSyn.5[wpNSyn.5$scaff=="Genome",])
+wp.gen=rbind(wp.gen,wp4dg.5[wp4dg.5$scaff=="Genome",])
+wp.gen=rbind(wp.gen,wp4dg.7[wp4dg.7$scaff=="Genome",])
+wp.gen=rbind(wp.gen,wpNSyn.7[wpNSyn.7$scaff=="Genome",])
+wp.gen=rbind(wp.gen,wpAll.7[wpAll.7$scaff=="Genome",])
+
+wl1.gen=rbind(wlAll.1[wlAll.1$scaff=="Genome",],wlNSyn.1[wlNSyn.1$scaff=="Genome",])
+wl1.gen=rbind(wl1.gen,wl4dg.1[wl4dg.1$scaff=="Genome",])
+
+wl2.gen=rbind(wlAll.2[wlAll.2$scaff=="Genome",],wlNSyn.2[wlNSyn.2$scaff=="Genome",])
+wl2.gen=rbind(wl2.gen,wl4dg.2[wl4dg.2$scaff=="Genome",])
+
+wp.gen$ploidy=as.factor(wp.gen$ploidy)
+wp.gen$sampind=as.factor(wp.gen$sampind)
+
+wl1.gen$ploidy=as.factor(wl1.gen$ploidy)
+wl1.gen$sampind=as.factor(wl1.gen$sampind)
+wl2.gen$ploidy=as.factor(wl2.gen$ploidy)
+wl2.gen$sampind=as.factor(wl2.gen$sampind)
+
+
+ggplot(wp.gen[wp.gen$sampind=="7",],aes(x=ploidy,y=Diversity))+geom_violin(data=wp.gen[wp.gen$sampind=="7",],aes(fill=Data),trim=F)+geom_boxplot(data=wp.gen[wp.gen$sampind=="7",],aes(x=ploidy,fill=Data),width=0.2,position=position_dodge(0.90))+ylab("Diversity")+theme_bw()+ggtitle("7 individuals -- Populations")+theme(axis.title.x=element_text(size=16),axis.title.y=element_text(size=16),axis.text.x=element_text(size=14),axis.text.y=element_text(size=14),plot.title=element_text(size=16),legend.title=element_text(size=16),legend.text=element_text(size=14))
+ggplot(wp.gen[wp.gen$sampind=="5",],aes(x=ploidy,y=Diversity))+geom_violin(data=wp.gen[wp.gen$sampind=="5",],aes(fill=Data),trim=F)+geom_boxplot(data=wp.gen[wp.gen$sampind=="5",],aes(x=ploidy,fill=Data),width=0.2,position=position_dodge(0.90))+ylab("Diversity")+theme_bw()+ggtitle("5 individuals -- Populations")+theme(axis.title.x=element_text(size=16),axis.title.y=element_text(size=16),axis.text.x=element_text(size=14),axis.text.y=element_text(size=14),plot.title=element_text(size=16),legend.title=element_text(size=16),legend.text=element_text(size=14))
+
+
+ggplot(wl1.gen,aes(x=ploidy,y=Diversity))+geom_violin(data=wl1.gen,aes(fill=Data),trim=F)+geom_boxplot(data=wl1.gen,aes(x=ploidy,fill=Data),width=0.2,position=position_dodge(0.91))+ylab("Diversity")+theme_bw()+ggtitle("Lineages -- 11 individuals")
+
+bp.gen=rbind(bpAll[bpAll$scaff=="Genome",],bpNSyn[bpNSyn$scaff=="Genome",])
+bp.gen=rbind(bp.gen,bp4dg[bp4dg$scaff=="Genome",])
+bl.gen=rbind(blAll[blAll$scaff=="Genome",],blNSyn[blNSyn$scaff=="Genome",])
+bl.gen=rbind(bl.gen,bl4dg[bl4dg$scaff=="Genome",])
+
+bl.gen1=bl.gen
+bl.gen1['pop2.x']=bl.gen1$pop1
+bl.gen1['pop1.x']=bl.gen1$pop2
+bl.gen1=bl.gen1[,-c(12,13)]
+colnames(bl.gen1)[13]="pop2"
+colnames(bl.gen1)[14]="pop1"
+bl.gen=rbind(bl.gen,bl.gen1)
+
+
+
+bp.gen1=bp.gen
+bp.gen1['pop2.x']=bp.gen1$pop1
+bp.gen1['pop1.x']=bp.gen1$pop2
+bp.gen1=bp.gen1[,-c(12,13)]
+colnames(bp.gen1)[13]="pop2"
+colnames(bp.gen1)[14]="pop1"
+bp.gen=rbind(bp.gen,bp.gen1)
+
+bp.gen$pop1=factor(bp.gen$pop1,levels=c("BEL","BIH","CRO","FOJ","GOR","HNE","HNI","KZL","MIE","PRE","RZA","SNO","SZI","TRD","VEL","VID","BGS","BRD","CHO","DRA","GUL","HOC","KAS","KOS","KOW","LAC","RFT","SCH","SPI","STE","SWA","TBG","TKO","TRE","TRT","TZI","WEK","ZAP"))
+bp.gen$pop2=factor(bp.gen$pop2,levels=c("BEL","BIH","CRO","FOJ","GOR","HNE","HNI","KZL","MIE","PRE","RZA","SNO","SZI","TRD","VEL","VID","BGS","BRD","CHO","DRA","GUL","HOC","KAS","KOS","KOW","LAC","RFT","SCH","SPI","STE","SWA","TBG","TKO","TRE","TRT","TZI","WEK","ZAP"))
+bp.gen=bp.gen[order(bp.gen$pop1,bp.gen$pop2),]
+str
+bl.gen$pop1=factor(bl.gen$pop1,levels=c('DPA','DDI','DSc','DWc','DBA','TSC','TRU','TWc','TAl','THE','TSW'))
+bl.gen$pop2=factor(bl.gen$pop2,levels=c('DPA','DDI','DSc','DWc','DBA','TSC','TRU','TWc','TAl','THE','TSW'))
+bl.gen=bl.gen[order(bl.gen$pop1,bl.gen$pop2),]
+
+#bp.gen3 was bp.gen that was exported and columns reformatted for NSyn data to match up with others:
+head(dcast(bp.gen3[bp.gen3$Data=="4dg",c("Rho","pop1","pop2")],pop1~pop2,value.var="Rho"))
+
+bp.gen['combined']=paste(round(bp.gen$Rho,3),"/",round(bp.gen$Fst,3),"/",round(bp.gen$dxy,3))
+
+bl.gen['combined']=paste(round(bl.gen$Rho,3),"/",round(bl.gen$Fst,3),"/",round(bl.gen$dxy,3))
+
+write.table(dcast(bl.gen[bl.gen$Data=="4dg",c("combined","pop1","pop2")],pop1~pop2,value.var="combined"),'~/Documents/Research/300/Pairwise_Lineages_4dg_bpm.txt',row.names = F,quote=F,sep='\t')
+
+write.table(dcast(bl.gen[bl.gen$Data=="PASS",c("combined","pop1","pop2")],pop1~pop2,value.var="combined"),'~/Documents/Research/300/Pairwise_Lineages_PASS_bpm.txt',row.names = F,quote=F,sep='\t')
+
+write.table(dcast(bl.gen[bl.gen$Data=="NSyn",c("combined","pop1","pop2")],pop1~pop2,value.var="combined"),'~/Documents/Research/300/Pairwise_Lineages_NSyn_bpm.txt',row.names = F,quote=F,sep='\t')
+
+write.table(dcast(bp.gen[bp.gen$Data=="4dg",c("combined","pop1","pop2")],pop1~pop2,value.var="combined"),'~/Documents/Research/300/Pairwise_Pops_4dg_bpm.txt',row.names = F,quote=F,sep='\t')
+
+write.table(dcast(bp.gen[bp.gen$Data=="PASS",c("combined","pop1","pop2")],pop1~pop2,value.var="combined"),'~/Documents/Research/300/Pairwise_Pops_PASS_bpm.txt',row.names = F,quote=F,sep='\t')
+
+write.table(dcast(bp.gen[bp.gen$Data=="NSyn",c("combined","pop1","pop2")],pop1~pop2,value.var="combined"),'~/Documents/Research/300/Pairwise_Pops_NSyn_bpm.txt',row.names = F,quote=F,sep='\t')
+
+ggplot(bp.gen,aes(x=ploidy_diff,y=Rho))+geom_violin(data=bp.gen,aes(fill=Data))+geom_boxplot(data=bp.gen3,aes(x=ploidy_diff,fill=Data),width=0.2,position=position_dodge(0.93))+scale_x_discrete(labels=c("Within-Ploidy","Between-Ploidy"))+ylab("Rho")+theme_bw()+theme(axis.title.x=element_blank())
+
+
+ggplot(bl.gen1,aes(x=ploidy_diff,y=Rho))+geom_violin(data=bl.gen1,aes(fill=Data),trim=F)+geom_boxplot(data=bl.gen1,aes(x=ploidy_diff,fill=Data),width=0.2,position=position_dodge(0.92))+ggtitle("Lineages")+scale_x_discrete(labels=c("Within-Ploidy","Between-Ploidy"))+ylab("Rho")+theme_bw()+theme(axis.title.x=element_blank())
+ggplot(bl.gen1,aes(x=ploidy_diff,y=Fst))+geom_violin(data=bl.gen1,aes(fill=Data),trim=F)+geom_boxplot(data=bl.gen1,aes(x=ploidy_diff,fill=Data),width=0.2,position=position_dodge(0.92))+ggtitle("Lineages")+scale_x_discrete(labels=c("Within-Ploidy","Between-Ploidy"))+ylab("Fst")+theme_bw()+theme(axis.title.x=element_blank())
+ggplot(bl.gen1,aes(x=ploidy_diff,y=dxy))+geom_violin(data=bl.gen1,aes(fill=Data),trim=F)+geom_boxplot(data=bl.gen1,aes(x=ploidy_diff,fill=Data),width=0.2,position=position_dodge(0.92))+ggtitle("Lineages")+scale_x_discrete(labels=c("Within-Ploidy","Between-Ploidy"))+ylab("Dxy")+theme_bw()+theme(axis.title.x=element_blank())
+
+ggplot(bp.gen3,aes(x=ploidy_diff,y=Rho))+geom_violin(data=bp.gen3,aes(fill=Data),trim=F)+geom_boxplot(data=bp.gen3,aes(x=ploidy_diff,fill=Data),width=0.2,position=position_dodge(0.92))+ggtitle("Populations")+scale_x_discrete(labels=c("Within-Ploidy","Between-Ploidy"))+ylab("Rho")+theme_bw()+theme(axis.title.x=element_blank())
+ggplot(bp.gen3,aes(x=ploidy_diff,y=Fst))+geom_violin(data=bp.gen3,aes(fill=Data),trim=F)+geom_boxplot(data=bp.gen3,aes(x=ploidy_diff,fill=Data),width=0.2,position=position_dodge(0.92))+ggtitle("Populations")+scale_x_discrete(labels=c("Within-Ploidy","Between-Ploidy"))+ylab("Fst")+theme_bw()+theme(axis.title.x=element_blank())
+ggplot(bp.gen3,aes(x=ploidy_diff,y=dxy))+geom_violin(data=bp.gen3,aes(fill=Data),trim=F)+geom_boxplot(data=bp.gen3,aes(x=ploidy_diff,fill=Data),width=0.2,position=position_dodge(0.92))+ggtitle("Populations")+scale_x_discrete(labels=c("Within-Ploidy","Between-Ploidy"))+ylab("Dxy")+theme_bw()+theme(axis.title.x=element_blank())
+
+bp.gen1=read.table("/Users/monnahap/Documents/Research/300/bp.gen.txt",head=T)
+bp.gen=merge(bp.gen,bp.gen1[,c("pop1","pop2","pop1.ploidy","pop2.ploidy")],by=c("pop1","pop2"))
+
+bp.gen['ploidy_diff2']=(bp.gen$pop1.ploidy+bp.gen$pop2.ploidy)
+bp.gen$ploidy_diff2=factor(bp.gen$ploidy_diff2,levels=c(4,8,6))
+bp.gen=bp.gen[bp.gen$pop1!="CRO",]
+bp.gen=bp.gen[bp.gen$pop2!="CRO",]
+bp.gen=bp.gen[!duplicated(bp.gen),]
+bp.gen$Data=factor(bp.gen$Data,levels=c("4dg","PASS","NSyn"))
+
+bl.gen['ploidy_diff2']=(bl.gen$pop1.ploidy+bl.gen$pop2.ploidy)
+bl.gen$ploidy_diff2=factor(bl.gen$ploidy_diff2,levels=c(4,8,6))
+
+ggplot(bp.gen,aes(x=ploidy_diff2,y=dxy))+geom_violin(data=bp.gen,aes(x=ploidy_diff2,y=dxy,fill=Data),trim=F)+geom_boxplot(data=bp.gen,aes(x=ploidy_diff2,y=dxy,fill=Data),width=0.2,position=position_dodge(0.90))+ggtitle("Populations")+scale_x_discrete(labels=c("Diploid","Tetraploid","Between-Ploidy"))+ylab("Dxy")+theme_bw()+theme(axis.title.x=element_blank(),axis.title.y=element_text(size=16),axis.text.x=element_text(size=14),axis.text.y=element_text(size=14),plot.title=element_text(size=16),legend.title=element_text(size=16),legend.text=element_text(size=14))+scale_fill_discrete(labels=c("4dg","All","NSyn"))
+
+ggplot(bp.gen,aes(x=ploidy_diff2,y=Rho))+geom_violin(data=bp.gen,aes(x=ploidy_diff2,y=Rho,fill=Data),trim=F)+geom_boxplot(data=bp.gen,aes(x=ploidy_diff2,y=Rho,fill=Data),width=0.2,position=position_dodge(0.90))+ggtitle("Populations")+scale_x_discrete(labels=c("Diploid","Tetraploid","Between-Ploidy"))+ylab("Rho")+theme_bw()+theme(axis.title.x=element_blank(),axis.title.y=element_text(size=16),axis.text.x=element_text(size=14),axis.text.y=element_text(size=14),plot.title=element_text(size=16),legend.title=element_text(size=16),legend.text=element_text(size=14))+scale_fill_discrete(labels=c("4dg","All","NSyn"))
+
+ggplot(bp.gen,aes(x=ploidy_diff2,y=Fst))+geom_violin(data=bp.gen,aes(x=ploidy_diff2,y=Fst,fill=Data),trim=F)+geom_boxplot(data=bp.gen,aes(x=ploidy_diff2,y=Fst,fill=Data),width=0.2,position=position_dodge(0.90))+ggtitle("Populations")+scale_x_discrete(labels=c("Diploid","Tetraploid","Between-Ploidy"))+ylab("Fst")+theme_bw()+theme(axis.title.x=element_blank(),axis.title.y=element_text(size=16),axis.text.x=element_text(size=14),axis.text.y=element_text(size=14),plot.title=element_text(size=16),legend.title=element_text(size=16),legend.text=element_text(size=14))+scale_fill_discrete(labels=c("4dg","All","NSyn"))
+
+
+ggplot(bl.gen,aes(x=ploidy_diff2,y=dxy))+geom_violin(data=bl.gen,aes(x=ploidy_diff2,y=dxy,fill=Data),trim=F)+geom_boxplot(data=bl.gen,aes(x=ploidy_diff2,y=dxy,fill=Data),width=0.2,position=position_dodge(0.90))+ggtitle("Lineages")+scale_x_discrete(labels=c("Diploid","Tetraploid","Between-Ploidy"))+ylab("Dxy")+theme_bw()+theme(axis.title.x=element_blank(),axis.title.y=element_text(size=16),axis.text.x=element_text(size=14),axis.text.y=element_text(size=14),plot.title=element_text(size=16),legend.title=element_text(size=16),legend.text=element_text(size=14)
+
+ggplot(bl.gen,aes(x=ploidy_diff2,y=Rho))+geom_violin(data=bl.gen,aes(x=ploidy_diff2,y=Rho,fill=Data),trim=F)+geom_boxplot(data=bl.gen,aes(x=ploidy_diff2,y=Rho,fill=Data),width=0.2,position=position_dodge(0.90))+ggtitle("Lineages")+scale_x_discrete(labels=c("Diploid","Tetraploid","Between-Ploidy"))+ylab("Rho")+theme_bw()+theme(axis.title.x=element_blank(),axis.title.y=element_text(size=16),axis.text.x=element_text(size=14),axis.text.y=element_text(size=14),plot.title=element_text(size=16),legend.title=element_text(size=16),legend.text=element_text(size=14)
+
+ggplot(bl.gen,aes(x=ploidy_diff2,y=Fst))+geom_violin(data=bl.gen,aes(x=ploidy_diff2,y=Fst,fill=Data),trim=F)+geom_boxplot(data=bl.gen,aes(x=ploidy_diff2,y=Fst,fill=Data),width=0.2,position=position_dodge(0.90))+ggtitle("Lineages")+scale_x_discrete(labels=c("Diploid","Tetraploid","Between-Ploidy"))+ylab("Fst")+theme_bw()+theme(axis.title.x=element_blank(),axis.title.y=element_text(size=16),axis.text.x=element_text(size=14),axis.text.y=element_text(size=14),plot.title=element_text(size=16),legend.title=element_text(size=16),legend.text=element_text(size=14)
+
+bp.gen=bp.gen[order(bp.gen$ploidy_diff2,-bp.gen$Rho),]
+head(bp.gen[bp.gen$ploidy_diff2==4 & bp.gen$Data=="PASS",],20)
+
+##### Chrom Diversity plots ########
+
+wlAll.1=
+wlAll=wlAll.1[wlAll.1$scaff!="Genome",]
+wlAll['wind']=paste(wlAll$scaff,wlAll$start)
+wl.dips=wlAll[wlAll$ploidy==2,]
+wl.tets=wlAll[wlAll$ploidy==4,]
+xx.dips=tapply(wl.dips$Diversity,wl.dips$wind,mean)
+means.dips=data.frame(key=names(xx.dips),value=xx.dips)
+xx.tets=tapply(wl.tets$Diversity,wl.tets$wind,mean)
+means.tets=data.frame(key=names(xx.tets),value=xx.tets)
+means.tets['ploidy']=4
+means.dips['ploidy']=2
+means.tets['pop']="TET"
+means.dips['pop']="DIP"
+means=rbind(means.dips,means.tets)
+means=rename(means,c("key"="wind","value"="Diversity"))
+means$wind=as.character(means$wind)
+means=merge(means,wlAll[,c("scaff","start","wind")],by=c("wind"))
+means=means[!duplicated(means),]
+
+ChromDiv1=ggplot(wlAll[wlAll$scaff=="scaffold_1",],aes(x=start/1000,y=log(Diversity),color=pop,linetype=as.factor(ploidy)))+geom_line(alpha=0.4)+geom_line(data=means[means$scaff=="scaffold_1",],aes(y=log(Diversity),x=start/1000,linetype=as.factor(ploidy)),color='black',alpha=0.5)+theme_bw()+xlab("Position (kb)")+ggtitle("Chromosome 1")
+ChromDiv2=ggplot(wlAll[wlAll$scaff=="scaffold_2",],aes(x=start/1000,y=log(Diversity),color=pop,linetype=as.factor(ploidy)))+geom_line(alpha=0.4)+geom_line(data=means[means$scaff=="scaffold_2",],aes(y=log(Diversity),x=start/1000,linetype=as.factor(ploidy)),color='black',alpha=0.5)+theme_bw()+xlab("Position (kb)")+ggtitle("Chromosome 2")
+ChromDiv3=ggplot(wlAll[wlAll$scaff=="scaffold_3",],aes(x=start/1000,y=log(Diversity),color=pop,linetype=as.factor(ploidy)))+geom_line(alpha=0.4)+geom_line(data=means[means$scaff=="scaffold_1",],aes(y=log(Diversity),x=start/1000,linetype=as.factor(ploidy)),color='black',alpha=0.5)+theme_bw()+xlab("Position (kb)")+ggtitle("Chromosome 1")
+
+ppp=3  #plots per page
+plot_name="ChromDiv"
+for(i in 1:8){
+    if((i-1+ppp)%%ppp==0){
+    pdf(paste("~/Documents/Research/300/",plot_name,(i-1+ppp)/ppp,".pdf",sep=""),width=20,height=10)
+    print(ggplot(wlAll[wlAll$scaff==paste("scaffold_",i,sep=""),],aes(x=start/1000,y=log(Diversity),color=pop,linetype=as.factor(ploidy)))+geom_line(alpha=0.4)+geom_line(data=means[means$scaff==paste("scaffold_",i,sep=""),],aes(y=log(Diversity),x=start/1000,linetype=as.factor(ploidy)),color='black',alpha=0.5)+theme_bw()+xlab("Position (kb)")+ggtitle(paste("Chromosome",i)))
+    }
+    else{
+    print(ggplot(wlAll[wlAll$scaff==paste("scaffold_",i,sep=""),],aes(x=start/1000,y=log(Diversity),color=pop,linetype=as.factor(ploidy)))+geom_line(alpha=0.4)+geom_line(data=means[means$scaff==paste("scaffold_",i,sep=""),],aes(y=log(Diversity),x=start/1000,linetype=as.factor(ploidy)),color='black',alpha=0.5)+theme_bw()+xlab("Position (kb)")+ggtitle(paste("Chromosome",i)))
+    }
+    if((i+ppp)%%ppp==0){
+    dev.off()
+    }
+}
+dev.off()
+
+
+##The above produces a working graph, but it isn't being called correctly from within the loop
+
+AFS plots:
+
+All=read.table("~/Documents/Research/300/AllPops_PASS_AFS.txt")
+dg=read.table("~/Documents/Research/300/AllPops_4dg_AFS.txt")
+Ns=read.table("~/Documents/Research/300/AllPops_NSyn_AFS.txt")
+ALL=rbind(All,dg)
+ALL=rbind(ALL,Ns)
+ALL$V1=as.character(ALL$V1)
+ALL['pop']=substr(ALL[,1],1,3)
+ALL['data']=substr(ALL[,1],5,7)
+ALL$pop=as.factor(ALL$pop)
+ALL$data=as.factor(ALL$data)
+ALL$data=factor(ALL$data,levels=c("4dg","PAS","NSy"))
+jj=aggregate(V3~pop+data,data=ALL[ALL$V2>0,],sum)
+colnames(jj)[3]="tot"
+ALL1=merge(ALL,jj,by=c("pop","data"))
+
+ALL2=data.frame()
+for(i in 1:length(Pops)){
+     xx=ALL1[ALL1$pop==Pops[i],]
+     xx['max']=max(xx$V2)
+     ALL2=rbind(ALL2,xx)
+ }
+
+ALL2['freq']=ALL2$V2/ALL2$max
+
+
+BEL=ggplot(ALL2[ALL2$pop=="BEL" & ALL2$freq>0.0 & ALL2$freq<1.0,],aes(x=freq,y=(V3/tot)/max(V3/tot)))+geom_bar(data=ALL2[ALL2$pop=="BEL" & ALL2$freq>0.0 & ALL2$freq<1.0,],aes(fill=data),position="dodge",stat="identity")+xlab("Allele Frequency")+ylab("Scaled Relative Frequency")+ggtitle("BEL (2)")+scale_fill_manual(name="Data",values = c("red", "seagreen3", "blue"),labels=c("4dg","All","Nsyn"))+theme_bw()
+BGS=ggplot(ALL2[ALL2$pop=="BGS" & ALL2$freq>0.0 & ALL2$freq<1.0,],aes(x=freq,y=(V3/tot)/max(V3/tot)))+geom_bar(data=ALL2[ALL2$pop=="BGS" & ALL2$freq>0.0 & ALL2$freq<1.0,],aes(fill=data),position="dodge",stat="identity")+xlab("Allele Frequency")+ylab("Scaled Relative Frequency")+ggtitle("BGS (4)")+scale_fill_manual(name="Data",values = c("red", "seagreen3", "blue"),labels=c("4dg","All","Nsyn"))+theme_bw()
+BIH=ggplot(ALL2[ALL2$pop=="BIH" & ALL2$freq>0.0 & ALL2$freq<1.0,],aes(x=freq,y=(V3/tot)/max(V3/tot)))+geom_bar(data=ALL2[ALL2$pop=="BIH" & ALL2$freq>0.0 & ALL2$freq<1.0,],aes(fill=data),position="dodge",stat="identity")+xlab("Allele Frequency")+ylab("Scaled Relative Frequency")+ggtitle("BIH (2)")+scale_fill_manual(name="Data",values = c("red", "seagreen3", "blue"),labels=c("4dg","All","Nsyn"))+theme_bw()
+BRD=ggplot(ALL2[ALL2$pop=="BRD" & ALL2$freq>0.0 & ALL2$freq<1.0,],aes(x=freq,y=(V3/tot)/max(V3/tot)))+geom_bar(data=ALL2[ALL2$pop=="BRD" & ALL2$freq>0.0 & ALL2$freq<1.0,],aes(fill=data),position="dodge",stat="identity")+xlab("Allele Frequency")+ylab("Scaled Relative Frequency")+ggtitle("BRD (4)")+scale_fill_manual(name="Data",values = c("red", "seagreen3", "blue"),labels=c("4dg","All","Nsyn"))+theme_bw()
+CHO=ggplot(ALL2[ALL2$pop=="CHO" & ALL2$freq>0.0 & ALL2$freq<1.0,],aes(x=freq,y=(V3/tot)/max(V3/tot)))+geom_bar(data=ALL2[ALL2$pop=="CHO" & ALL2$freq>0.0 & ALL2$freq<1.0,],aes(fill=data),position="dodge",stat="identity")+xlab("Allele Frequency")+ylab("Scaled Relative Frequency")+ggtitle("CHO (4)")+scale_fill_manual(name="Data",values = c("red", "seagreen3", "blue"),labels=c("4dg","All","Nsyn"))+theme_bw()
+DRA=ggplot(ALL2[ALL2$pop=="DRA" & ALL2$freq>0.0 & ALL2$freq<1.0,],aes(x=freq,y=(V3/tot)/max(V3/tot)))+geom_bar(data=ALL2[ALL2$pop=="DRA" & ALL2$freq>0.0 & ALL2$freq<1.0,],aes(fill=data),position="dodge",stat="identity")+xlab("Allele Frequency")+ylab("Scaled Relative Frequency")+ggtitle("DRA (4)")+scale_fill_manual(name="Data",values = c("red", "seagreen3", "blue"),labels=c("4dg","All","Nsyn"))+theme_bw()
+FOJ=ggplot(ALL2[ALL2$pop=="FOJ" & ALL2$freq>0.0 & ALL2$freq<1.0,],aes(x=freq,y=(V3/tot)/max(V3/tot)))+geom_bar(data=ALL2[ALL2$pop=="FOJ" & ALL2$freq>0.0 & ALL2$freq<1.0,],aes(fill=data),position="dodge",stat="identity")+xlab("Allele Frequency")+ylab("Scaled Relative Frequency")+ggtitle("FOJ (2)")+scale_fill_manual(name="Data",values = c("red", "seagreen3", "blue"),labels=c("4dg","All","Nsyn"))+theme_bw()
+GOR=ggplot(ALL2[ALL2$pop=="GOR" & ALL2$freq>0.0 & ALL2$freq<1.0,],aes(x=freq,y=(V3/tot)/max(V3/tot)))+geom_bar(data=ALL2[ALL2$pop=="GOR" & ALL2$freq>0.0 & ALL2$freq<1.0,],aes(fill=data),position="dodge",stat="identity")+xlab("Allele Frequency")+ylab("Scaled Relative Frequency")+ggtitle("GOR (2)")+scale_fill_manual(name="Data",values = c("red", "seagreen3", "blue"),labels=c("4dg","All","Nsyn"))+theme_bw()
+GUL=ggplot(ALL2[ALL2$pop=="GUL" & ALL2$freq>0.0 & ALL2$freq<1.0,],aes(x=freq,y=(V3/tot)/max(V3/tot)))+geom_bar(data=ALL2[ALL2$pop=="GUL" & ALL2$freq>0.0 & ALL2$freq<1.0,],aes(fill=data),position="dodge",stat="identity")+xlab("Allele Frequency")+ylab("Scaled Relative Frequency")+ggtitle("GUL (4)")+scale_fill_manual(name="Data",values = c("red", "seagreen3", "blue"),labels=c("4dg","All","Nsyn"))+theme_bw()
+HNE=ggplot(ALL2[ALL2$pop=="HNE" & ALL2$freq>0.0 & ALL2$freq<1.0,],aes(x=freq,y=(V3/tot)/max(V3/tot)))+geom_bar(data=ALL2[ALL2$pop=="HNE" & ALL2$freq>0.0 & ALL2$freq<1.0,],aes(fill=data),position="dodge",stat="identity")+xlab("Allele Frequency")+ylab("Scaled Relative Frequency")+ggtitle("HNE (2)")+scale_fill_manual(name="Data",values = c("red", "seagreen3", "blue"),labels=c("4dg","All","Nsyn"))+theme_bw()
+HOC=ggplot(ALL2[ALL2$pop=="HOC" & ALL2$freq>0.0 & ALL2$freq<1.0,],aes(x=freq,y=(V3/tot)/max(V3/tot)))+geom_bar(data=ALL2[ALL2$pop=="HOC" & ALL2$freq>0.0 & ALL2$freq<1.0,],aes(fill=data),position="dodge",stat="identity")+xlab("Allele Frequency")+ylab("Scaled Relative Frequency")+ggtitle("HOC (4)")+scale_fill_manual(name="Data",values = c("red", "seagreen3", "blue"),labels=c("4dg","All","Nsyn"))+theme_bw()
+KAS=ggplot(ALL2[ALL2$pop=="KAS" & ALL2$freq>0.0 & ALL2$freq<1.0,],aes(x=freq,y=(V3/tot)/max(V3/tot)))+geom_bar(data=ALL2[ALL2$pop=="KAS" & ALL2$freq>0.0 & ALL2$freq<1.0,],aes(fill=data),position="dodge",stat="identity")+xlab("Allele Frequency")+ylab("Scaled Relative Frequency")+ggtitle("KAS (4)")+scale_fill_manual(name="Data",values = c("red", "seagreen3", "blue"),labels=c("4dg","All","Nsyn"))+theme_bw()
+KOS=ggplot(ALL2[ALL2$pop=="KOS" & ALL2$freq>0.0 & ALL2$freq<1.0,],aes(x=freq,y=(V3/tot)/max(V3/tot)))+geom_bar(data=ALL2[ALL2$pop=="KOS" & ALL2$freq>0.0 & ALL2$freq<1.0,],aes(fill=data),position="dodge",stat="identity")+xlab("Allele Frequency")+ylab("Scaled Relative Frequency")+ggtitle("KOS (4)")+scale_fill_manual(name="Data",values = c("red", "seagreen3", "blue"),labels=c("4dg","All","Nsyn"))+theme_bw()
+KOW=ggplot(ALL2[ALL2$pop=="KOW" & ALL2$freq>0.0 & ALL2$freq<1.0,],aes(x=freq,y=(V3/tot)/max(V3/tot)))+geom_bar(data=ALL2[ALL2$pop=="KOW" & ALL2$freq>0.0 & ALL2$freq<1.0,],aes(fill=data),position="dodge",stat="identity")+xlab("Allele Frequency")+ylab("Scaled Relative Frequency")+ggtitle("KOW (4)")+scale_fill_manual(name="Data",values = c("red", "seagreen3", "blue"),labels=c("4dg","All","Nsyn"))+theme_bw()
+KZL=ggplot(ALL2[ALL2$pop=="KZL" & ALL2$freq>0.0 & ALL2$freq<1.0,],aes(x=freq,y=(V3/tot)/max(V3/tot)))+geom_bar(data=ALL2[ALL2$pop=="KZL" & ALL2$freq>0.0 & ALL2$freq<1.0,],aes(fill=data),position="dodge",stat="identity")+xlab("Allele Frequency")+ylab("Scaled Relative Frequency")+ggtitle("KZL (2)")+scale_fill_manual(name="Data",values = c("red", "seagreen3", "blue"),labels=c("4dg","All","Nsyn"))+theme_bw()
+LAC=ggplot(ALL2[ALL2$pop=="LAC" & ALL2$freq>0.0 & ALL2$freq<1.0,],aes(x=freq,y=(V3/tot)/max(V3/tot)))+geom_bar(data=ALL2[ALL2$pop=="LAC" & ALL2$freq>0.0 & ALL2$freq<1.0,],aes(fill=data),position="dodge",stat="identity")+xlab("Allele Frequency")+ylab("Scaled Relative Frequency")+ggtitle("LAC (4)")+scale_fill_manual(name="Data",values = c("red", "seagreen3", "blue"),labels=c("4dg","All","Nsyn"))+theme_bw()
+MIE=ggplot(ALL2[ALL2$pop=="MIE" & ALL2$freq>0.0 & ALL2$freq<1.0,],aes(x=freq,y=(V3/tot)/max(V3/tot)))+geom_bar(data=ALL2[ALL2$pop=="MIE" & ALL2$freq>0.0 & ALL2$freq<1.0,],aes(fill=data),position="dodge",stat="identity")+xlab("Allele Frequency")+ylab("Scaled Relative Frequency")+ggtitle("MIE (2)")+scale_fill_manual(name="Data",values = c("red", "seagreen3", "blue"),labels=c("4dg","All","Nsyn"))+theme_bw()
+PRE=ggplot(ALL2[ALL2$pop=="PRE" & ALL2$freq>0.0 & ALL2$freq<1.0,],aes(x=freq,y=(V3/tot)/max(V3/tot)))+geom_bar(data=ALL2[ALL2$pop=="PRE" & ALL2$freq>0.0 & ALL2$freq<1.0,],aes(fill=data),position="dodge",stat="identity")+xlab("Allele Frequency")+ylab("Scaled Relative Frequency")+ggtitle("PRE (2)")+scale_fill_manual(name="Data",values = c("red", "seagreen3", "blue"),labels=c("4dg","All","Nsyn"))+theme_bw()
+RFT=ggplot(ALL2[ALL2$pop=="RFT" & ALL2$freq>0.0 & ALL2$freq<1.0,],aes(x=freq,y=(V3/tot)/max(V3/tot)))+geom_bar(data=ALL2[ALL2$pop=="RFT" & ALL2$freq>0.0 & ALL2$freq<1.0,],aes(fill=data),position="dodge",stat="identity")+xlab("Allele Frequency")+ylab("Scaled Relative Frequency")+ggtitle("RFT (4)")+scale_fill_manual(name="Data",values = c("red", "seagreen3", "blue"),labels=c("4dg","All","Nsyn"))+theme_bw()
+RZA=ggplot(ALL2[ALL2$pop=="RZA" & ALL2$freq>0.0 & ALL2$freq<1.0,],aes(x=freq,y=(V3/tot)/max(V3/tot)))+geom_bar(data=ALL2[ALL2$pop=="RZA" & ALL2$freq>0.0 & ALL2$freq<1.0,],aes(fill=data),position="dodge",stat="identity")+xlab("Allele Frequency")+ylab("Scaled Relative Frequency")+ggtitle("RZA (2)")+scale_fill_manual(name="Data",values = c("red", "seagreen3", "blue"),labels=c("4dg","All","Nsyn"))+theme_bw()
+SCH=ggplot(ALL2[ALL2$pop=="SCH" & ALL2$freq>0.0 & ALL2$freq<1.0,],aes(x=freq,y=(V3/tot)/max(V3/tot)))+geom_bar(data=ALL2[ALL2$pop=="SCH" & ALL2$freq>0.0 & ALL2$freq<1.0,],aes(fill=data),position="dodge",stat="identity")+xlab("Allele Frequency")+ylab("Scaled Relative Frequency")+ggtitle("SCH (4)")+scale_fill_manual(name="Data",values = c("red", "seagreen3", "blue"),labels=c("4dg","All","Nsyn"))+theme_bw()
+SNO=ggplot(ALL2[ALL2$pop=="SNO" & ALL2$freq>0.0 & ALL2$freq<1.0,],aes(x=freq,y=(V3/tot)/max(V3/tot)))+geom_bar(data=ALL2[ALL2$pop=="SNO" & ALL2$freq>0.0 & ALL2$freq<1.0,],aes(fill=data),position="dodge",stat="identity")+xlab("Allele Frequency")+ylab("Scaled Relative Frequency")+ggtitle("SNO (2)")+scale_fill_manual(name="Data",values = c("red", "seagreen3", "blue"),labels=c("4dg","All","Nsyn"))+theme_bw()
+SPI=ggplot(ALL2[ALL2$pop=="SPI" & ALL2$freq>0.0 & ALL2$freq<1.0,],aes(x=freq,y=(V3/tot)/max(V3/tot)))+geom_bar(data=ALL2[ALL2$pop=="SPI" & ALL2$freq>0.0 & ALL2$freq<1.0,],aes(fill=data),position="dodge",stat="identity")+xlab("Allele Frequency")+ylab("Scaled Relative Frequency")+ggtitle("SPI (4)")+scale_fill_manual(name="Data",values = c("red", "seagreen3", "blue"),labels=c("4dg","All","Nsyn"))+theme_bw()
+STE=ggplot(ALL2[ALL2$pop=="STE" & ALL2$freq>0.0 & ALL2$freq<1.0,],aes(x=freq,y=(V3/tot)/max(V3/tot)))+geom_bar(data=ALL2[ALL2$pop=="STE" & ALL2$freq>0.0 & ALL2$freq<1.0,],aes(fill=data),position="dodge",stat="identity")+xlab("Allele Frequency")+ylab("Scaled Relative Frequency")+ggtitle("STE (4)")+scale_fill_manual(name="Data",values = c("red", "seagreen3", "blue"),labels=c("4dg","All","Nsyn"))+theme_bw()
+SWA=ggplot(ALL2[ALL2$pop=="SWA" & ALL2$freq>0.0 & ALL2$freq<1.0,],aes(x=freq,y=(V3/tot)/max(V3/tot)))+geom_bar(data=ALL2[ALL2$pop=="SWA" & ALL2$freq>0.0 & ALL2$freq<1.0,],aes(fill=data),position="dodge",stat="identity")+xlab("Allele Frequency")+ylab("Scaled Relative Frequency")+ggtitle("SWA (4)")+scale_fill_manual(name="Data",values = c("red", "seagreen3", "blue"),labels=c("4dg","All","Nsyn"))+theme_bw()
+SZI=ggplot(ALL2[ALL2$pop=="SZI" & ALL2$freq>0.0 & ALL2$freq<1.0,],aes(x=freq,y=(V3/tot)/max(V3/tot)))+geom_bar(data=ALL2[ALL2$pop=="SZI" & ALL2$freq>0.0 & ALL2$freq<1.0,],aes(fill=data),position="dodge",stat="identity")+xlab("Allele Frequency")+ylab("Scaled Relative Frequency")+ggtitle("SZI (2)")+scale_fill_manual(name="Data",values = c("red", "seagreen3", "blue"),labels=c("4dg","All","Nsyn"))+theme_bw()
+TBG=ggplot(ALL2[ALL2$pop=="TBG" & ALL2$freq>0.0 & ALL2$freq<1.0,],aes(x=freq,y=(V3/tot)/max(V3/tot)))+geom_bar(data=ALL2[ALL2$pop=="TBG" & ALL2$freq>0.0 & ALL2$freq<1.0,],aes(fill=data),position="dodge",stat="identity")+xlab("Allele Frequency")+ylab("Scaled Relative Frequency")+ggtitle("TBG (4)")+scale_fill_manual(name="Data",values = c("red", "seagreen3", "blue"),labels=c("4dg","All","Nsyn"))+theme_bw()
+TKO=ggplot(ALL2[ALL2$pop=="TKO" & ALL2$freq>0.0 & ALL2$freq<1.0,],aes(x=freq,y=(V3/tot)/max(V3/tot)))+geom_bar(data=ALL2[ALL2$pop=="TKO" & ALL2$freq>0.0 & ALL2$freq<1.0,],aes(fill=data),position="dodge",stat="identity")+xlab("Allele Frequency")+ylab("Scaled Relative Frequency")+ggtitle("TKO (4)")+scale_fill_manual(name="Data",values = c("red", "seagreen3", "blue"),labels=c("4dg","All","Nsyn"))+theme_bw()
+TRD=ggplot(ALL2[ALL2$pop=="TRD" & ALL2$freq>0.0 & ALL2$freq<1.0,],aes(x=freq,y=(V3/tot)/max(V3/tot)))+geom_bar(data=ALL2[ALL2$pop=="TRD" & ALL2$freq>0.0 & ALL2$freq<1.0,],aes(fill=data),position="dodge",stat="identity")+xlab("Allele Frequency")+ylab("Scaled Relative Frequency")+ggtitle("TRD (2)")+scale_fill_manual(name="Data",values = c("red", "seagreen3", "blue"),labels=c("4dg","All","Nsyn"))+theme_bw()
+TRE=ggplot(ALL2[ALL2$pop=="TRE" & ALL2$freq>0.0 & ALL2$freq<1.0,],aes(x=freq,y=(V3/tot)/max(V3/tot)))+geom_bar(data=ALL2[ALL2$pop=="TRE" & ALL2$freq>0.0 & ALL2$freq<1.0,],aes(fill=data),position="dodge",stat="identity")+xlab("Allele Frequency")+ylab("Scaled Relative Frequency")+ggtitle("TRE (4)")+scale_fill_manual(name="Data",values = c("red", "seagreen3", "blue"),labels=c("4dg","All","Nsyn"))+theme_bw()
+TRT=ggplot(ALL2[ALL2$pop=="TRT" & ALL2$freq>0.0 & ALL2$freq<1.0,],aes(x=freq,y=(V3/tot)/max(V3/tot)))+geom_bar(data=ALL2[ALL2$pop=="TRT" & ALL2$freq>0.0 & ALL2$freq<1.0,],aes(fill=data),position="dodge",stat="identity")+xlab("Allele Frequency")+ylab("Scaled Relative Frequency")+ggtitle("TRT (4)")+scale_fill_manual(name="Data",values = c("red", "seagreen3", "blue"),labels=c("4dg","All","Nsyn"))+theme_bw()
+TZI=ggplot(ALL2[ALL2$pop=="TZI" & ALL2$freq>0.0 & ALL2$freq<1.0,],aes(x=freq,y=(V3/tot)/max(V3/tot)))+geom_bar(data=ALL2[ALL2$pop=="TZI" & ALL2$freq>0.0 & ALL2$freq<1.0,],aes(fill=data),position="dodge",stat="identity")+xlab("Allele Frequency")+ylab("Scaled Relative Frequency")+ggtitle("TZI (4)")+scale_fill_manual(name="Data",values = c("red", "seagreen3", "blue"),labels=c("4dg","All","Nsyn"))+theme_bw()
+VEL=ggplot(ALL2[ALL2$pop=="VEL" & ALL2$freq>0.0 & ALL2$freq<1.0,],aes(x=freq,y=(V3/tot)/max(V3/tot)))+geom_bar(data=ALL2[ALL2$pop=="VEL" & ALL2$freq>0.0 & ALL2$freq<1.0,],aes(fill=data),position="dodge",stat="identity")+xlab("Allele Frequency")+ylab("Scaled Relative Frequency")+ggtitle("VEL (2)")+scale_fill_manual(name="Data",values = c("red", "seagreen3", "blue"),labels=c("4dg","All","Nsyn"))+theme_bw()
+VID=ggplot(ALL2[ALL2$pop=="VID" & ALL2$freq>0.0 & ALL2$freq<1.0,],aes(x=freq,y=(V3/tot)/max(V3/tot)))+geom_bar(data=ALL2[ALL2$pop=="VID" & ALL2$freq>0.0 & ALL2$freq<1.0,],aes(fill=data),position="dodge",stat="identity")+xlab("Allele Frequency")+ylab("Scaled Relative Frequency")+ggtitle("VID (2)")+scale_fill_manual(name="Data",values = c("red", "seagreen3", "blue"),labels=c("4dg","All","Nsyn"))+theme_bw()
+WEK=ggplot(ALL2[ALL2$pop=="WEK" & ALL2$freq>0.0 & ALL2$freq<1.0,],aes(x=freq,y=(V3/tot)/max(V3/tot)))+geom_bar(data=ALL2[ALL2$pop=="WEK" & ALL2$freq>0.0 & ALL2$freq<1.0,],aes(fill=data),position="dodge",stat="identity")+xlab("Allele Frequency")+ylab("Scaled Relative Frequency")+ggtitle("WEK (4)")+scale_fill_manual(name="Data",values = c("red", "seagreen3", "blue"),labels=c("4dg","All","Nsyn"))+theme_bw()
+ZAP=ggplot(ALL2[ALL2$pop=="ZAP" & ALL2$freq>0.0 & ALL2$freq<1.0,],aes(x=freq,y=(V3/tot)/max(V3/tot)))+geom_bar(data=ALL2[ALL2$pop=="ZAP" & ALL2$freq>0.0 & ALL2$freq<1.0,],aes(fill=data),position="dodge",stat="identity")+xlab("Allele Frequency")+ylab("Scaled Relative Frequency")+ggtitle("ZAP (4)")+scale_fill_manual(name="Data",values = c("red", "seagreen3", "blue"),labels=c("4dg","All","Nsyn"))+theme_bw()
+
+
+library(gridExtra)
+pdf("~/Documents/Research/300/AFS1_dip.pdf")
+grid.arrange(BEL,BIH,FOJ,GOR,HNE,KZL,nrow=3,ncol=2)
+dev.off()
+pdf("~/Documents/Research/300/AFS2_dip.pdf")
+grid.arrange(MIE,PRE,RZA,SNO,SZI,TRD,nrow=3,ncol=2)
+dev.off()
+pdf("~/Documents/Research/300/AFS3_dip.pdf")
+grid.arrange(VEL,VID,nrow=3,ncol=2)
+dev.off()
+pdf("~/Documents/Research/300/AFS4_tet.pdf")
+grid.arrange(BGS,BRD,CHO,DRA,GUL,HOC,nrow=3,ncol=2)
+dev.off()
+pdf("~/Documents/Research/300/AFS5_tet.pdf")
+grid.arrange(KAS,KOS,KOW,LAC,RFT,SCH,nrow=3,ncol=2)
+dev.off()
+pdf("~/Documents/Research/300/AFS6_tet.pdf")
+grid.arrange(SPI,STE,SWA,TBG,TKO,TRE,nrow=3,ncol=2)
+dev.off()
+pdf("~/Documents/Research/300/AFS7_tet.pdf")
+grid.arrange(TRT,TZI,WEK,ZAP,nrow=3,ncol=2)
+dev.off()
+
+
+
+BEL.fd=ggplot(ALL2[ALL2$pop=="BEL" & ALL2$freq>0.0,],aes(x=freq,y=(V3/tot)/max(V3/tot)))+geom_bar(data=ALL2[ALL2$pop=="BEL" & ALL2$freq>0.0,],aes(fill=data),position="dodge",stat="identity")+xlab("Allele Frequency")+ylab("Scaled Relative Frequency")+ggtitle("BEL (2)")+scale_fill_manual(name="Data",values = c("red", "seagreen3", "blue"),labels=c("4dg","All","Nsyn"))+theme_bw()
+BGS.fd=ggplot(ALL2[ALL2$pop=="BGS" & ALL2$freq>0.0,],aes(x=freq,y=(V3/tot)/max(V3/tot)))+geom_bar(data=ALL2[ALL2$pop=="BGS" & ALL2$freq>0.0,],aes(fill=data),position="dodge",stat="identity")+xlab("Allele Frequency")+ylab("Scaled Relative Frequency")+ggtitle("BGS (4)")+scale_fill_manual(name="Data",values = c("red", "seagreen3", "blue"),labels=c("4dg","All","Nsyn"))+theme_bw()
+BIH.fd=ggplot(ALL2[ALL2$pop=="BIH" & ALL2$freq>0.0,],aes(x=freq,y=(V3/tot)/max(V3/tot)))+geom_bar(data=ALL2[ALL2$pop=="BIH" & ALL2$freq>0.0,],aes(fill=data),position="dodge",stat="identity")+xlab("Allele Frequency")+ylab("Scaled Relative Frequency")+ggtitle("BIH (2)")+scale_fill_manual(name="Data",values = c("red", "seagreen3", "blue"),labels=c("4dg","All","Nsyn"))+theme_bw()
+BRD.fd=ggplot(ALL2[ALL2$pop=="BRD" & ALL2$freq>0.0,],aes(x=freq,y=(V3/tot)/max(V3/tot)))+geom_bar(data=ALL2[ALL2$pop=="BRD" & ALL2$freq>0.0,],aes(fill=data),position="dodge",stat="identity")+xlab("Allele Frequency")+ylab("Scaled Relative Frequency")+ggtitle("BRD (4)")+scale_fill_manual(name="Data",values = c("red", "seagreen3", "blue"),labels=c("4dg","All","Nsyn"))+theme_bw()
+CHO.fd=ggplot(ALL2[ALL2$pop=="CHO" & ALL2$freq>0.0,],aes(x=freq,y=(V3/tot)/max(V3/tot)))+geom_bar(data=ALL2[ALL2$pop=="CHO" & ALL2$freq>0.0,],aes(fill=data),position="dodge",stat="identity")+xlab("Allele Frequency")+ylab("Scaled Relative Frequency")+ggtitle("CHO (4)")+scale_fill_manual(name="Data",values = c("red", "seagreen3", "blue"),labels=c("4dg","All","Nsyn"))+theme_bw()
+DRA.fd=ggplot(ALL2[ALL2$pop=="DRA" & ALL2$freq>0.0,],aes(x=freq,y=(V3/tot)/max(V3/tot)))+geom_bar(data=ALL2[ALL2$pop=="DRA" & ALL2$freq>0.0,],aes(fill=data),position="dodge",stat="identity")+xlab("Allele Frequency")+ylab("Scaled Relative Frequency")+ggtitle("DRA (4)")+scale_fill_manual(name="Data",values = c("red", "seagreen3", "blue"),labels=c("4dg","All","Nsyn"))+theme_bw()
+FOJ.fd=ggplot(ALL2[ALL2$pop=="FOJ" & ALL2$freq>0.0,],aes(x=freq,y=(V3/tot)/max(V3/tot)))+geom_bar(data=ALL2[ALL2$pop=="FOJ" & ALL2$freq>0.0,],aes(fill=data),position="dodge",stat="identity")+xlab("Allele Frequency")+ylab("Scaled Relative Frequency")+ggtitle("FOJ (2)")+scale_fill_manual(name="Data",values = c("red", "seagreen3", "blue"),labels=c("4dg","All","Nsyn"))+theme_bw()
+GOR.fd=ggplot(ALL2[ALL2$pop=="GOR" & ALL2$freq>0.0,],aes(x=freq,y=(V3/tot)/max(V3/tot)))+geom_bar(data=ALL2[ALL2$pop=="GOR" & ALL2$freq>0.0,],aes(fill=data),position="dodge",stat="identity")+xlab("Allele Frequency")+ylab("Scaled Relative Frequency")+ggtitle("GOR (2)")+scale_fill_manual(name="Data",values = c("red", "seagreen3", "blue"),labels=c("4dg","All","Nsyn"))+theme_bw()
+GUL.fd=ggplot(ALL2[ALL2$pop=="GUL" & ALL2$freq>0.0,],aes(x=freq,y=(V3/tot)/max(V3/tot)))+geom_bar(data=ALL2[ALL2$pop=="GUL" & ALL2$freq>0.0,],aes(fill=data),position="dodge",stat="identity")+xlab("Allele Frequency")+ylab("Scaled Relative Frequency")+ggtitle("GUL (4)")+scale_fill_manual(name="Data",values = c("red", "seagreen3", "blue"),labels=c("4dg","All","Nsyn"))+theme_bw()
+HNE.fd=ggplot(ALL2[ALL2$pop=="HNE" & ALL2$freq>0.0,],aes(x=freq,y=(V3/tot)/max(V3/tot)))+geom_bar(data=ALL2[ALL2$pop=="HNE" & ALL2$freq>0.0,],aes(fill=data),position="dodge",stat="identity")+xlab("Allele Frequency")+ylab("Scaled Relative Frequency")+ggtitle("HNE (2)")+scale_fill_manual(name="Data",values = c("red", "seagreen3", "blue"),labels=c("4dg","All","Nsyn"))+theme_bw()
+HOC.fd=ggplot(ALL2[ALL2$pop=="HOC" & ALL2$freq>0.0,],aes(x=freq,y=(V3/tot)/max(V3/tot)))+geom_bar(data=ALL2[ALL2$pop=="HOC" & ALL2$freq>0.0,],aes(fill=data),position="dodge",stat="identity")+xlab("Allele Frequency")+ylab("Scaled Relative Frequency")+ggtitle("HOC (4)")+scale_fill_manual(name="Data",values = c("red", "seagreen3", "blue"),labels=c("4dg","All","Nsyn"))+theme_bw()
+KAS.fd=ggplot(ALL2[ALL2$pop=="KAS" & ALL2$freq>0.0,],aes(x=freq,y=(V3/tot)/max(V3/tot)))+geom_bar(data=ALL2[ALL2$pop=="KAS" & ALL2$freq>0.0,],aes(fill=data),position="dodge",stat="identity")+xlab("Allele Frequency")+ylab("Scaled Relative Frequency")+ggtitle("KAS (4)")+scale_fill_manual(name="Data",values = c("red", "seagreen3", "blue"),labels=c("4dg","All","Nsyn"))+theme_bw()
+KOS.fd=ggplot(ALL2[ALL2$pop=="KOS" & ALL2$freq>0.0,],aes(x=freq,y=(V3/tot)/max(V3/tot)))+geom_bar(data=ALL2[ALL2$pop=="KOS" & ALL2$freq>0.0,],aes(fill=data),position="dodge",stat="identity")+xlab("Allele Frequency")+ylab("Scaled Relative Frequency")+ggtitle("KOS (4)")+scale_fill_manual(name="Data",values = c("red", "seagreen3", "blue"),labels=c("4dg","All","Nsyn"))+theme_bw()
+KOW.fd=ggplot(ALL2[ALL2$pop=="KOW" & ALL2$freq>0.0,],aes(x=freq,y=(V3/tot)/max(V3/tot)))+geom_bar(data=ALL2[ALL2$pop=="KOW" & ALL2$freq>0.0,],aes(fill=data),position="dodge",stat="identity")+xlab("Allele Frequency")+ylab("Scaled Relative Frequency")+ggtitle("KOW (4)")+scale_fill_manual(name="Data",values = c("red", "seagreen3", "blue"),labels=c("4dg","All","Nsyn"))+theme_bw()
+KZL.fd=ggplot(ALL2[ALL2$pop=="KZL" & ALL2$freq>0.0,],aes(x=freq,y=(V3/tot)/max(V3/tot)))+geom_bar(data=ALL2[ALL2$pop=="KZL" & ALL2$freq>0.0,],aes(fill=data),position="dodge",stat="identity")+xlab("Allele Frequency")+ylab("Scaled Relative Frequency")+ggtitle("KZL (2)")+scale_fill_manual(name="Data",values = c("red", "seagreen3", "blue"),labels=c("4dg","All","Nsyn"))+theme_bw()
+LAC.fd=ggplot(ALL2[ALL2$pop=="LAC" & ALL2$freq>0.0,],aes(x=freq,y=(V3/tot)/max(V3/tot)))+geom_bar(data=ALL2[ALL2$pop=="LAC" & ALL2$freq>0.0,],aes(fill=data),position="dodge",stat="identity")+xlab("Allele Frequency")+ylab("Scaled Relative Frequency")+ggtitle("LAC (4)")+scale_fill_manual(name="Data",values = c("red", "seagreen3", "blue"),labels=c("4dg","All","Nsyn"))+theme_bw()
+MIE.fd=ggplot(ALL2[ALL2$pop=="MIE" & ALL2$freq>0.0,],aes(x=freq,y=(V3/tot)/max(V3/tot)))+geom_bar(data=ALL2[ALL2$pop=="MIE" & ALL2$freq>0.0,],aes(fill=data),position="dodge",stat="identity")+xlab("Allele Frequency")+ylab("Scaled Relative Frequency")+ggtitle("MIE (2)")+scale_fill_manual(name="Data",values = c("red", "seagreen3", "blue"),labels=c("4dg","All","Nsyn"))+theme_bw()
+PRE.fd=ggplot(ALL2[ALL2$pop=="PRE" & ALL2$freq>0.0,],aes(x=freq,y=(V3/tot)/max(V3/tot)))+geom_bar(data=ALL2[ALL2$pop=="PRE" & ALL2$freq>0.0,],aes(fill=data),position="dodge",stat="identity")+xlab("Allele Frequency")+ylab("Scaled Relative Frequency")+ggtitle("PRE (2)")+scale_fill_manual(name="Data",values = c("red", "seagreen3", "blue"),labels=c("4dg","All","Nsyn"))+theme_bw()
+RFT.fd=ggplot(ALL2[ALL2$pop=="RFT" & ALL2$freq>0.0,],aes(x=freq,y=(V3/tot)/max(V3/tot)))+geom_bar(data=ALL2[ALL2$pop=="RFT" & ALL2$freq>0.0,],aes(fill=data),position="dodge",stat="identity")+xlab("Allele Frequency")+ylab("Scaled Relative Frequency")+ggtitle("RFT (4)")+scale_fill_manual(name="Data",values = c("red", "seagreen3", "blue"),labels=c("4dg","All","Nsyn"))+theme_bw()
+RZA.fd=ggplot(ALL2[ALL2$pop=="RZA" & ALL2$freq>0.0,],aes(x=freq,y=(V3/tot)/max(V3/tot)))+geom_bar(data=ALL2[ALL2$pop=="RZA" & ALL2$freq>0.0,],aes(fill=data),position="dodge",stat="identity")+xlab("Allele Frequency")+ylab("Scaled Relative Frequency")+ggtitle("RZA (2)")+scale_fill_manual(name="Data",values = c("red", "seagreen3", "blue"),labels=c("4dg","All","Nsyn"))+theme_bw()
+SCH.fd=ggplot(ALL2[ALL2$pop=="SCH" & ALL2$freq>0.0,],aes(x=freq,y=(V3/tot)/max(V3/tot)))+geom_bar(data=ALL2[ALL2$pop=="SCH" & ALL2$freq>0.0,],aes(fill=data),position="dodge",stat="identity")+xlab("Allele Frequency")+ylab("Scaled Relative Frequency")+ggtitle("SCH (4)")+scale_fill_manual(name="Data",values = c("red", "seagreen3", "blue"),labels=c("4dg","All","Nsyn"))+theme_bw()
+SNO.fd=ggplot(ALL2[ALL2$pop=="SNO" & ALL2$freq>0.0,],aes(x=freq,y=(V3/tot)/max(V3/tot)))+geom_bar(data=ALL2[ALL2$pop=="SNO" & ALL2$freq>0.0,],aes(fill=data),position="dodge",stat="identity")+xlab("Allele Frequency")+ylab("Scaled Relative Frequency")+ggtitle("SNO (2)")+scale_fill_manual(name="Data",values = c("red", "seagreen3", "blue"),labels=c("4dg","All","Nsyn"))+theme_bw()
+SPI.fd=ggplot(ALL2[ALL2$pop=="SPI" & ALL2$freq>0.0,],aes(x=freq,y=(V3/tot)/max(V3/tot)))+geom_bar(data=ALL2[ALL2$pop=="SPI" & ALL2$freq>0.0,],aes(fill=data),position="dodge",stat="identity")+xlab("Allele Frequency")+ylab("Scaled Relative Frequency")+ggtitle("SPI (4)")+scale_fill_manual(name="Data",values = c("red", "seagreen3", "blue"),labels=c("4dg","All","Nsyn"))+theme_bw()
+STE.fd=ggplot(ALL2[ALL2$pop=="STE" & ALL2$freq>0.0,],aes(x=freq,y=(V3/tot)/max(V3/tot)))+geom_bar(data=ALL2[ALL2$pop=="STE" & ALL2$freq>0.0,],aes(fill=data),position="dodge",stat="identity")+xlab("Allele Frequency")+ylab("Scaled Relative Frequency")+ggtitle("STE (4)")+scale_fill_manual(name="Data",values = c("red", "seagreen3", "blue"),labels=c("4dg","All","Nsyn"))+theme_bw()
+SWA.fd=ggplot(ALL2[ALL2$pop=="SWA" & ALL2$freq>0.0,],aes(x=freq,y=(V3/tot)/max(V3/tot)))+geom_bar(data=ALL2[ALL2$pop=="SWA" & ALL2$freq>0.0,],aes(fill=data),position="dodge",stat="identity")+xlab("Allele Frequency")+ylab("Scaled Relative Frequency")+ggtitle("SWA (4)")+scale_fill_manual(name="Data",values = c("red", "seagreen3", "blue"),labels=c("4dg","All","Nsyn"))+theme_bw()
+SZI.fd=ggplot(ALL2[ALL2$pop=="SZI" & ALL2$freq>0.0,],aes(x=freq,y=(V3/tot)/max(V3/tot)))+geom_bar(data=ALL2[ALL2$pop=="SZI" & ALL2$freq>0.0,],aes(fill=data),position="dodge",stat="identity")+xlab("Allele Frequency")+ylab("Scaled Relative Frequency")+ggtitle("SZI (2)")+scale_fill_manual(name="Data",values = c("red", "seagreen3", "blue"),labels=c("4dg","All","Nsyn"))+theme_bw()
+TBG.fd=ggplot(ALL2[ALL2$pop=="TBG" & ALL2$freq>0.0,],aes(x=freq,y=(V3/tot)/max(V3/tot)))+geom_bar(data=ALL2[ALL2$pop=="TBG" & ALL2$freq>0.0,],aes(fill=data),position="dodge",stat="identity")+xlab("Allele Frequency")+ylab("Scaled Relative Frequency")+ggtitle("TBG (4)")+scale_fill_manual(name="Data",values = c("red", "seagreen3", "blue"),labels=c("4dg","All","Nsyn"))+theme_bw()
+TKO.fd=ggplot(ALL2[ALL2$pop=="TKO" & ALL2$freq>0.0,],aes(x=freq,y=(V3/tot)/max(V3/tot)))+geom_bar(data=ALL2[ALL2$pop=="TKO" & ALL2$freq>0.0,],aes(fill=data),position="dodge",stat="identity")+xlab("Allele Frequency")+ylab("Scaled Relative Frequency")+ggtitle("TKO (4)")+scale_fill_manual(name="Data",values = c("red", "seagreen3", "blue"),labels=c("4dg","All","Nsyn"))+theme_bw()
+TRD.fd=ggplot(ALL2[ALL2$pop=="TRD" & ALL2$freq>0.0,],aes(x=freq,y=(V3/tot)/max(V3/tot)))+geom_bar(data=ALL2[ALL2$pop=="TRD" & ALL2$freq>0.0,],aes(fill=data),position="dodge",stat="identity")+xlab("Allele Frequency")+ylab("Scaled Relative Frequency")+ggtitle("TRD (2)")+scale_fill_manual(name="Data",values = c("red", "seagreen3", "blue"),labels=c("4dg","All","Nsyn"))+theme_bw()
+TRE.fd=ggplot(ALL2[ALL2$pop=="TRE" & ALL2$freq>0.0,],aes(x=freq,y=(V3/tot)/max(V3/tot)))+geom_bar(data=ALL2[ALL2$pop=="TRE" & ALL2$freq>0.0,],aes(fill=data),position="dodge",stat="identity")+xlab("Allele Frequency")+ylab("Scaled Relative Frequency")+ggtitle("TRE (4)")+scale_fill_manual(name="Data",values = c("red", "seagreen3", "blue"),labels=c("4dg","All","Nsyn"))+theme_bw()
+TRT.fd=ggplot(ALL2[ALL2$pop=="TRT" & ALL2$freq>0.0,],aes(x=freq,y=(V3/tot)/max(V3/tot)))+geom_bar(data=ALL2[ALL2$pop=="TRT" & ALL2$freq>0.0,],aes(fill=data),position="dodge",stat="identity")+xlab("Allele Frequency")+ylab("Scaled Relative Frequency")+ggtitle("TRT (4)")+scale_fill_manual(name="Data",values = c("red", "seagreen3", "blue"),labels=c("4dg","All","Nsyn"))+theme_bw()
+TZI.fd=ggplot(ALL2[ALL2$pop=="TZI" & ALL2$freq>0.0,],aes(x=freq,y=(V3/tot)/max(V3/tot)))+geom_bar(data=ALL2[ALL2$pop=="TZI" & ALL2$freq>0.0,],aes(fill=data),position="dodge",stat="identity")+xlab("Allele Frequency")+ylab("Scaled Relative Frequency")+ggtitle("TZI (4)")+scale_fill_manual(name="Data",values = c("red", "seagreen3", "blue"),labels=c("4dg","All","Nsyn"))+theme_bw()
+VEL.fd=ggplot(ALL2[ALL2$pop=="VEL" & ALL2$freq>0.0,],aes(x=freq,y=(V3/tot)/max(V3/tot)))+geom_bar(data=ALL2[ALL2$pop=="VEL" & ALL2$freq>0.0,],aes(fill=data),position="dodge",stat="identity")+xlab("Allele Frequency")+ylab("Scaled Relative Frequency")+ggtitle("VEL (2)")+scale_fill_manual(name="Data",values = c("red", "seagreen3", "blue"),labels=c("4dg","All","Nsyn"))+theme_bw()
+VID.fd=ggplot(ALL2[ALL2$pop=="VID" & ALL2$freq>0.0,],aes(x=freq,y=(V3/tot)/max(V3/tot)))+geom_bar(data=ALL2[ALL2$pop=="VID" & ALL2$freq>0.0,],aes(fill=data),position="dodge",stat="identity")+xlab("Allele Frequency")+ylab("Scaled Relative Frequency")+ggtitle("VID (2)")+scale_fill_manual(name="Data",values = c("red", "seagreen3", "blue"),labels=c("4dg","All","Nsyn"))+theme_bw()
+WEK.fd=ggplot(ALL2[ALL2$pop=="WEK" & ALL2$freq>0.0,],aes(x=freq,y=(V3/tot)/max(V3/tot)))+geom_bar(data=ALL2[ALL2$pop=="WEK" & ALL2$freq>0.0,],aes(fill=data),position="dodge",stat="identity")+xlab("Allele Frequency")+ylab("Scaled Relative Frequency")+ggtitle("WEK (4)")+scale_fill_manual(name="Data",values = c("red", "seagreen3", "blue"),labels=c("4dg","All","Nsyn"))+theme_bw()
+ZAP.fd=ggplot(ALL2[ALL2$pop=="ZAP" & ALL2$freq>0.0,],aes(x=freq,y=(V3/tot)/max(V3/tot)))+geom_bar(data=ALL2[ALL2$pop=="ZAP" & ALL2$freq>0.0,],aes(fill=data),position="dodge",stat="identity")+xlab("Allele Frequency")+ylab("Scaled Relative Frequency")+ggtitle("ZAP (4)")+scale_fill_manual(name="Data",values = c("red", "seagreen3", "blue"),labels=c("4dg","All","Nsyn"))+theme_bw()
+
+library(gridExtra)
+pdf("~/Documents/Research/300/AFS1_dip_FD.pdf")
+grid.arrange(BEL.fd,BIH.fd,FOJ.fd,GOR.fd,HNE.fd,KZL.fd,nrow=3,ncol=2)
+dev.off()
+pdf("~/Documents/Research/300/AFS2_dip_FD.pdf")
+grid.arrange(MIE.fd,PRE.fd,RZA.fd,SNO.fd,SZI.fd,TRD.fd,nrow=3,ncol=2)
+dev.off()
+pdf("~/Documents/Research/300/AFS3_dip_FD.pdf")
+grid.arrange(VEL.fd,VID.fd,nrow=3,ncol=2)
+dev.off()
+pdf("~/Documents/Research/300/AFS4_tet_FD.pdf")
+grid.arrange(BGS.fd,BRD.fd,CHO.fd,DRA.fd,GUL.fd,HOC.fd,nrow=3,ncol=2)
+dev.off()
+pdf("~/Documents/Research/300/AFS5_tet_FD.pdf")
+grid.arrange(KAS.fd,KOS.fd,KOW.fd,LAC.fd,RFT.fd,SCH.fd,nrow=3,ncol=2)
+dev.off()
+pdf("~/Documents/Research/300/AFS6_tet_FD.pdf")
+grid.arrange(SPI.fd,STE.fd,SWA.fd,TBG.fd,TKO.fd,TRE.fd,nrow=3,ncol=2)
+dev.off()
+pdf("~/Documents/Research/300/AFS7_tet_FD.pdf")
+grid.arrange(TRT.fd,TZI.fd,WEK.fd,ZAP.fd,nrow=3,ncol=2)
+dev.off()
+
+AFS plots--SameAN:
+
+All.an=read.table("~/Documents/Research/300/DipTetSameAN_PASS_AFS.txt")
+dg.an=read.table("~/Documents/Research/300/DipTetSameAN_4dg_AFS.txt")
+Ns.an=read.table("~/Documents/Research/300/DipTetSameAN_NSyn_AFS.txt")
+ALL.an=rbind(All.an,dg.an)
+ALL.an=rbind(ALL.an,Ns.an)
+ALL.an$V1=as.character(ALL.an$V1)
+ALL.an['pop']=substr(ALL.an[,1],1,3)
+ALL.an['data']=substr(ALL.an[,1],5,7)
+ALL.an$pop=as.factor(ALL.an$pop)
+ALL.an$data=as.factor(ALL.an$data)
+ALL.an$data=factor(ALL.an$data,levels=c("4dg","PAS","NSy"))
+jj=aggregate(V3~pop+data,data=ALL.an[ALL.an$V2>0,],sum)
+colnames(jj)[3]="tot"
+All1.an=merge(ALL.an,jj,by=c("pop","data"))
+
+All2.an=data.frame()
+for(i in 1:length(Pops)){
+     xx=All1.an[All1.an$pop==Pops[i],]
+     xx['max']=max(xx$V2)
+     All2.an=rbind(All2.an,xx)
+ }
+
+All2.an['freq']=All2.an$V2/All2.an$max
+
+
+BEL.an=ggplot(All2.an[All2.an$pop=="BEL" & All2.an$freq>0.0 & All2.an$freq<1.0,],aes(x=freq,y=(V3/tot)/max(V3/tot)))+geom_bar(data=All2.an[All2.an$pop=="BEL" & All2.an$freq>0.0 & All2.an$freq<1.0,],aes(fill=data),position="dodge",stat="identity")+xlab("Allele Frequency")+ylab("Scaled Relative Frequency")+ggtitle("BEL (2)")+scale_fill_manual(name="Data",values = c("red", "seagreen3", "blue"),labels=c("4dg","All","Nsyn"))+theme_bw()
+BGS.an=ggplot(All2.an[All2.an$pop=="BGS" & All2.an$freq>0.0 & All2.an$freq<1.0,],aes(x=freq,y=(V3/tot)/max(V3/tot)))+geom_bar(data=All2.an[All2.an$pop=="BGS" & All2.an$freq>0.0 & All2.an$freq<1.0,],aes(fill=data),position="dodge",stat="identity")+xlab("Allele Frequency")+ylab("Scaled Relative Frequency")+ggtitle("BGS (4)")+scale_fill_manual(name="Data",values = c("red", "seagreen3", "blue"),labels=c("4dg","All","Nsyn"))+theme_bw()
+BIH.an=ggplot(All2.an[All2.an$pop=="BIH" & All2.an$freq>0.0 & All2.an$freq<1.0,],aes(x=freq,y=(V3/tot)/max(V3/tot)))+geom_bar(data=All2.an[All2.an$pop=="BIH" & All2.an$freq>0.0 & All2.an$freq<1.0,],aes(fill=data),position="dodge",stat="identity")+xlab("Allele Frequency")+ylab("Scaled Relative Frequency")+ggtitle("BIH (2)")+scale_fill_manual(name="Data",values = c("red", "seagreen3", "blue"),labels=c("4dg","All","Nsyn"))+theme_bw()
+BRD.an=ggplot(All2.an[All2.an$pop=="BRD" & All2.an$freq>0.0 & All2.an$freq<1.0,],aes(x=freq,y=(V3/tot)/max(V3/tot)))+geom_bar(data=All2.an[All2.an$pop=="BRD" & All2.an$freq>0.0 & All2.an$freq<1.0,],aes(fill=data),position="dodge",stat="identity")+xlab("Allele Frequency")+ylab("Scaled Relative Frequency")+ggtitle("BRD (4)")+scale_fill_manual(name="Data",values = c("red", "seagreen3", "blue"),labels=c("4dg","All","Nsyn"))+theme_bw()
+CHO.an=ggplot(All2.an[All2.an$pop=="CHO" & All2.an$freq>0.0 & All2.an$freq<1.0,],aes(x=freq,y=(V3/tot)/max(V3/tot)))+geom_bar(data=All2.an[All2.an$pop=="CHO" & All2.an$freq>0.0 & All2.an$freq<1.0,],aes(fill=data),position="dodge",stat="identity")+xlab("Allele Frequency")+ylab("Scaled Relative Frequency")+ggtitle("CHO (4)")+scale_fill_manual(name="Data",values = c("red", "seagreen3", "blue"),labels=c("4dg","All","Nsyn"))+theme_bw()
+DRA.an=ggplot(All2.an[All2.an$pop=="DRA" & All2.an$freq>0.0 & All2.an$freq<1.0,],aes(x=freq,y=(V3/tot)/max(V3/tot)))+geom_bar(data=All2.an[All2.an$pop=="DRA" & All2.an$freq>0.0 & All2.an$freq<1.0,],aes(fill=data),position="dodge",stat="identity")+xlab("Allele Frequency")+ylab("Scaled Relative Frequency")+ggtitle("DRA (4)")+scale_fill_manual(name="Data",values = c("red", "seagreen3", "blue"),labels=c("4dg","All","Nsyn"))+theme_bw()
+FOJ.an=ggplot(All2.an[All2.an$pop=="FOJ" & All2.an$freq>0.0 & All2.an$freq<1.0,],aes(x=freq,y=(V3/tot)/max(V3/tot)))+geom_bar(data=All2.an[All2.an$pop=="FOJ" & All2.an$freq>0.0 & All2.an$freq<1.0,],aes(fill=data),position="dodge",stat="identity")+xlab("Allele Frequency")+ylab("Scaled Relative Frequency")+ggtitle("FOJ (2)")+scale_fill_manual(name="Data",values = c("red", "seagreen3", "blue"),labels=c("4dg","All","Nsyn"))+theme_bw()
+GOR.an=ggplot(All2.an[All2.an$pop=="GOR" & All2.an$freq>0.0 & All2.an$freq<1.0,],aes(x=freq,y=(V3/tot)/max(V3/tot)))+geom_bar(data=All2.an[All2.an$pop=="GOR" & All2.an$freq>0.0 & All2.an$freq<1.0,],aes(fill=data),position="dodge",stat="identity")+xlab("Allele Frequency")+ylab("Scaled Relative Frequency")+ggtitle("GOR (2)")+scale_fill_manual(name="Data",values = c("red", "seagreen3", "blue"),labels=c("4dg","All","Nsyn"))+theme_bw()
+GUL.an=ggplot(All2.an[All2.an$pop=="GUL" & All2.an$freq>0.0 & All2.an$freq<1.0,],aes(x=freq,y=(V3/tot)/max(V3/tot)))+geom_bar(data=All2.an[All2.an$pop=="GUL" & All2.an$freq>0.0 & All2.an$freq<1.0,],aes(fill=data),position="dodge",stat="identity")+xlab("Allele Frequency")+ylab("Scaled Relative Frequency")+ggtitle("GUL (4)")+scale_fill_manual(name="Data",values = c("red", "seagreen3", "blue"),labels=c("4dg","All","Nsyn"))+theme_bw()
+HNE.an=ggplot(All2.an[All2.an$pop=="HNE" & All2.an$freq>0.0 & All2.an$freq<1.0,],aes(x=freq,y=(V3/tot)/max(V3/tot)))+geom_bar(data=All2.an[All2.an$pop=="HNE" & All2.an$freq>0.0 & All2.an$freq<1.0,],aes(fill=data),position="dodge",stat="identity")+xlab("Allele Frequency")+ylab("Scaled Relative Frequency")+ggtitle("HNE (2)")+scale_fill_manual(name="Data",values = c("red", "seagreen3", "blue"),labels=c("4dg","All","Nsyn"))+theme_bw()
+HOC.an=ggplot(All2.an[All2.an$pop=="HOC" & All2.an$freq>0.0 & All2.an$freq<1.0,],aes(x=freq,y=(V3/tot)/max(V3/tot)))+geom_bar(data=All2.an[All2.an$pop=="HOC" & All2.an$freq>0.0 & All2.an$freq<1.0,],aes(fill=data),position="dodge",stat="identity")+xlab("Allele Frequency")+ylab("Scaled Relative Frequency")+ggtitle("HOC (4)")+scale_fill_manual(name="Data",values = c("red", "seagreen3", "blue"),labels=c("4dg","All","Nsyn"))+theme_bw()
+KAS.an=ggplot(All2.an[All2.an$pop=="KAS" & All2.an$freq>0.0 & All2.an$freq<1.0,],aes(x=freq,y=(V3/tot)/max(V3/tot)))+geom_bar(data=All2.an[All2.an$pop=="KAS" & All2.an$freq>0.0 & All2.an$freq<1.0,],aes(fill=data),position="dodge",stat="identity")+xlab("Allele Frequency")+ylab("Scaled Relative Frequency")+ggtitle("KAS (4)")+scale_fill_manual(name="Data",values = c("red", "seagreen3", "blue"),labels=c("4dg","All","Nsyn"))+theme_bw()
+KOS.an=ggplot(All2.an[All2.an$pop=="KOS" & All2.an$freq>0.0 & All2.an$freq<1.0,],aes(x=freq,y=(V3/tot)/max(V3/tot)))+geom_bar(data=All2.an[All2.an$pop=="KOS" & All2.an$freq>0.0 & All2.an$freq<1.0,],aes(fill=data),position="dodge",stat="identity")+xlab("Allele Frequency")+ylab("Scaled Relative Frequency")+ggtitle("KOS (4)")+scale_fill_manual(name="Data",values = c("red", "seagreen3", "blue"),labels=c("4dg","All","Nsyn"))+theme_bw()
+KOW.an=ggplot(All2.an[All2.an$pop=="KOW" & All2.an$freq>0.0 & All2.an$freq<1.0,],aes(x=freq,y=(V3/tot)/max(V3/tot)))+geom_bar(data=All2.an[All2.an$pop=="KOW" & All2.an$freq>0.0 & All2.an$freq<1.0,],aes(fill=data),position="dodge",stat="identity")+xlab("Allele Frequency")+ylab("Scaled Relative Frequency")+ggtitle("KOW (4)")+scale_fill_manual(name="Data",values = c("red", "seagreen3", "blue"),labels=c("4dg","All","Nsyn"))+theme_bw()
+KZL.an=ggplot(All2.an[All2.an$pop=="KZL" & All2.an$freq>0.0 & All2.an$freq<1.0,],aes(x=freq,y=(V3/tot)/max(V3/tot)))+geom_bar(data=All2.an[All2.an$pop=="KZL" & All2.an$freq>0.0 & All2.an$freq<1.0,],aes(fill=data),position="dodge",stat="identity")+xlab("Allele Frequency")+ylab("Scaled Relative Frequency")+ggtitle("KZL (2)")+scale_fill_manual(name="Data",values = c("red", "seagreen3", "blue"),labels=c("4dg","All","Nsyn"))+theme_bw()
+LAC.an=ggplot(All2.an[All2.an$pop=="LAC" & All2.an$freq>0.0 & All2.an$freq<1.0,],aes(x=freq,y=(V3/tot)/max(V3/tot)))+geom_bar(data=All2.an[All2.an$pop=="LAC" & All2.an$freq>0.0 & All2.an$freq<1.0,],aes(fill=data),position="dodge",stat="identity")+xlab("Allele Frequency")+ylab("Scaled Relative Frequency")+ggtitle("LAC (4)")+scale_fill_manual(name="Data",values = c("red", "seagreen3", "blue"),labels=c("4dg","All","Nsyn"))+theme_bw()
+MIE.an=ggplot(All2.an[All2.an$pop=="MIE" & All2.an$freq>0.0 & All2.an$freq<1.0,],aes(x=freq,y=(V3/tot)/max(V3/tot)))+geom_bar(data=All2.an[All2.an$pop=="MIE" & All2.an$freq>0.0 & All2.an$freq<1.0,],aes(fill=data),position="dodge",stat="identity")+xlab("Allele Frequency")+ylab("Scaled Relative Frequency")+ggtitle("MIE (2)")+scale_fill_manual(name="Data",values = c("red", "seagreen3", "blue"),labels=c("4dg","All","Nsyn"))+theme_bw()
+PRE.an=ggplot(All2.an[All2.an$pop=="PRE" & All2.an$freq>0.0 & All2.an$freq<1.0,],aes(x=freq,y=(V3/tot)/max(V3/tot)))+geom_bar(data=All2.an[All2.an$pop=="PRE" & All2.an$freq>0.0 & All2.an$freq<1.0,],aes(fill=data),position="dodge",stat="identity")+xlab("Allele Frequency")+ylab("Scaled Relative Frequency")+ggtitle("PRE (2)")+scale_fill_manual(name="Data",values = c("red", "seagreen3", "blue"),labels=c("4dg","All","Nsyn"))+theme_bw()
+RFT.an=ggplot(All2.an[All2.an$pop=="RFT" & All2.an$freq>0.0 & All2.an$freq<1.0,],aes(x=freq,y=(V3/tot)/max(V3/tot)))+geom_bar(data=All2.an[All2.an$pop=="RFT" & All2.an$freq>0.0 & All2.an$freq<1.0,],aes(fill=data),position="dodge",stat="identity")+xlab("Allele Frequency")+ylab("Scaled Relative Frequency")+ggtitle("RFT (4)")+scale_fill_manual(name="Data",values = c("red", "seagreen3", "blue"),labels=c("4dg","All","Nsyn"))+theme_bw()
+RZA.an=ggplot(All2.an[All2.an$pop=="RZA" & All2.an$freq>0.0 & All2.an$freq<1.0,],aes(x=freq,y=(V3/tot)/max(V3/tot)))+geom_bar(data=All2.an[All2.an$pop=="RZA" & All2.an$freq>0.0 & All2.an$freq<1.0,],aes(fill=data),position="dodge",stat="identity")+xlab("Allele Frequency")+ylab("Scaled Relative Frequency")+ggtitle("RZA (2)")+scale_fill_manual(name="Data",values = c("red", "seagreen3", "blue"),labels=c("4dg","All","Nsyn"))+theme_bw()
+SCH.an=ggplot(All2.an[All2.an$pop=="SCH" & All2.an$freq>0.0 & All2.an$freq<1.0,],aes(x=freq,y=(V3/tot)/max(V3/tot)))+geom_bar(data=All2.an[All2.an$pop=="SCH" & All2.an$freq>0.0 & All2.an$freq<1.0,],aes(fill=data),position="dodge",stat="identity")+xlab("Allele Frequency")+ylab("Scaled Relative Frequency")+ggtitle("SCH (4)")+scale_fill_manual(name="Data",values = c("red", "seagreen3", "blue"),labels=c("4dg","All","Nsyn"))+theme_bw()
+SNO.an=ggplot(All2.an[All2.an$pop=="SNO" & All2.an$freq>0.0 & All2.an$freq<1.0,],aes(x=freq,y=(V3/tot)/max(V3/tot)))+geom_bar(data=All2.an[All2.an$pop=="SNO" & All2.an$freq>0.0 & All2.an$freq<1.0,],aes(fill=data),position="dodge",stat="identity")+xlab("Allele Frequency")+ylab("Scaled Relative Frequency")+ggtitle("SNO (2)")+scale_fill_manual(name="Data",values = c("red", "seagreen3", "blue"),labels=c("4dg","All","Nsyn"))+theme_bw()
+SPI.an=ggplot(All2.an[All2.an$pop=="SPI" & All2.an$freq>0.0 & All2.an$freq<1.0,],aes(x=freq,y=(V3/tot)/max(V3/tot)))+geom_bar(data=All2.an[All2.an$pop=="SPI" & All2.an$freq>0.0 & All2.an$freq<1.0,],aes(fill=data),position="dodge",stat="identity")+xlab("Allele Frequency")+ylab("Scaled Relative Frequency")+ggtitle("SPI (4)")+scale_fill_manual(name="Data",values = c("red", "seagreen3", "blue"),labels=c("4dg","All","Nsyn"))+theme_bw()
+STE.an=ggplot(All2.an[All2.an$pop=="STE" & All2.an$freq>0.0 & All2.an$freq<1.0,],aes(x=freq,y=(V3/tot)/max(V3/tot)))+geom_bar(data=All2.an[All2.an$pop=="STE" & All2.an$freq>0.0 & All2.an$freq<1.0,],aes(fill=data),position="dodge",stat="identity")+xlab("Allele Frequency")+ylab("Scaled Relative Frequency")+ggtitle("STE (4)")+scale_fill_manual(name="Data",values = c("red", "seagreen3", "blue"),labels=c("4dg","All","Nsyn"))+theme_bw()
+SWA.an=ggplot(All2.an[All2.an$pop=="SWA" & All2.an$freq>0.0 & All2.an$freq<1.0,],aes(x=freq,y=(V3/tot)/max(V3/tot)))+geom_bar(data=All2.an[All2.an$pop=="SWA" & All2.an$freq>0.0 & All2.an$freq<1.0,],aes(fill=data),position="dodge",stat="identity")+xlab("Allele Frequency")+ylab("Scaled Relative Frequency")+ggtitle("SWA (4)")+scale_fill_manual(name="Data",values = c("red", "seagreen3", "blue"),labels=c("4dg","All","Nsyn"))+theme_bw()
+SZI.an=ggplot(All2.an[All2.an$pop=="SZI" & All2.an$freq>0.0 & All2.an$freq<1.0,],aes(x=freq,y=(V3/tot)/max(V3/tot)))+geom_bar(data=All2.an[All2.an$pop=="SZI" & All2.an$freq>0.0 & All2.an$freq<1.0,],aes(fill=data),position="dodge",stat="identity")+xlab("Allele Frequency")+ylab("Scaled Relative Frequency")+ggtitle("SZI (2)")+scale_fill_manual(name="Data",values = c("red", "seagreen3", "blue"),labels=c("4dg","All","Nsyn"))+theme_bw()
+TBG.an=ggplot(All2.an[All2.an$pop=="TBG" & All2.an$freq>0.0 & All2.an$freq<1.0,],aes(x=freq,y=(V3/tot)/max(V3/tot)))+geom_bar(data=All2.an[All2.an$pop=="TBG" & All2.an$freq>0.0 & All2.an$freq<1.0,],aes(fill=data),position="dodge",stat="identity")+xlab("Allele Frequency")+ylab("Scaled Relative Frequency")+ggtitle("TBG (4)")+scale_fill_manual(name="Data",values = c("red", "seagreen3", "blue"),labels=c("4dg","All","Nsyn"))+theme_bw()
+TKO.an=ggplot(All2.an[All2.an$pop=="TKO" & All2.an$freq>0.0 & All2.an$freq<1.0,],aes(x=freq,y=(V3/tot)/max(V3/tot)))+geom_bar(data=All2.an[All2.an$pop=="TKO" & All2.an$freq>0.0 & All2.an$freq<1.0,],aes(fill=data),position="dodge",stat="identity")+xlab("Allele Frequency")+ylab("Scaled Relative Frequency")+ggtitle("TKO (4)")+scale_fill_manual(name="Data",values = c("red", "seagreen3", "blue"),labels=c("4dg","All","Nsyn"))+theme_bw()
+TRD.an=ggplot(All2.an[All2.an$pop=="TRD" & All2.an$freq>0.0 & All2.an$freq<1.0,],aes(x=freq,y=(V3/tot)/max(V3/tot)))+geom_bar(data=All2.an[All2.an$pop=="TRD" & All2.an$freq>0.0 & All2.an$freq<1.0,],aes(fill=data),position="dodge",stat="identity")+xlab("Allele Frequency")+ylab("Scaled Relative Frequency")+ggtitle("TRD (2)")+scale_fill_manual(name="Data",values = c("red", "seagreen3", "blue"),labels=c("4dg","All","Nsyn"))+theme_bw()
+TRE.an=ggplot(All2.an[All2.an$pop=="TRE" & All2.an$freq>0.0 & All2.an$freq<1.0,],aes(x=freq,y=(V3/tot)/max(V3/tot)))+geom_bar(data=All2.an[All2.an$pop=="TRE" & All2.an$freq>0.0 & All2.an$freq<1.0,],aes(fill=data),position="dodge",stat="identity")+xlab("Allele Frequency")+ylab("Scaled Relative Frequency")+ggtitle("TRE (4)")+scale_fill_manual(name="Data",values = c("red", "seagreen3", "blue"),labels=c("4dg","All","Nsyn"))+theme_bw()
+TRT.an=ggplot(All2.an[All2.an$pop=="TRT" & All2.an$freq>0.0 & All2.an$freq<1.0,],aes(x=freq,y=(V3/tot)/max(V3/tot)))+geom_bar(data=All2.an[All2.an$pop=="TRT" & All2.an$freq>0.0 & All2.an$freq<1.0,],aes(fill=data),position="dodge",stat="identity")+xlab("Allele Frequency")+ylab("Scaled Relative Frequency")+ggtitle("TRT (4)")+scale_fill_manual(name="Data",values = c("red", "seagreen3", "blue"),labels=c("4dg","All","Nsyn"))+theme_bw()
+TZI.an=ggplot(All2.an[All2.an$pop=="TZI" & All2.an$freq>0.0 & All2.an$freq<1.0,],aes(x=freq,y=(V3/tot)/max(V3/tot)))+geom_bar(data=All2.an[All2.an$pop=="TZI" & All2.an$freq>0.0 & All2.an$freq<1.0,],aes(fill=data),position="dodge",stat="identity")+xlab("Allele Frequency")+ylab("Scaled Relative Frequency")+ggtitle("TZI (4)")+scale_fill_manual(name="Data",values = c("red", "seagreen3", "blue"),labels=c("4dg","All","Nsyn"))+theme_bw()
+VEL.an=ggplot(All2.an[All2.an$pop=="VEL" & All2.an$freq>0.0 & All2.an$freq<1.0,],aes(x=freq,y=(V3/tot)/max(V3/tot)))+geom_bar(data=All2.an[All2.an$pop=="VEL" & All2.an$freq>0.0 & All2.an$freq<1.0,],aes(fill=data),position="dodge",stat="identity")+xlab("Allele Frequency")+ylab("Scaled Relative Frequency")+ggtitle("VEL (2)")+scale_fill_manual(name="Data",values = c("red", "seagreen3", "blue"),labels=c("4dg","All","Nsyn"))+theme_bw()
+VID.an=ggplot(All2.an[All2.an$pop=="VID" & All2.an$freq>0.0 & All2.an$freq<1.0,],aes(x=freq,y=(V3/tot)/max(V3/tot)))+geom_bar(data=All2.an[All2.an$pop=="VID" & All2.an$freq>0.0 & All2.an$freq<1.0,],aes(fill=data),position="dodge",stat="identity")+xlab("Allele Frequency")+ylab("Scaled Relative Frequency")+ggtitle("VID (2)")+scale_fill_manual(name="Data",values = c("red", "seagreen3", "blue"),labels=c("4dg","All","Nsyn"))+theme_bw()
+WEK.an=ggplot(All2.an[All2.an$pop=="WEK" & All2.an$freq>0.0 & All2.an$freq<1.0,],aes(x=freq,y=(V3/tot)/max(V3/tot)))+geom_bar(data=All2.an[All2.an$pop=="WEK" & All2.an$freq>0.0 & All2.an$freq<1.0,],aes(fill=data),position="dodge",stat="identity")+xlab("Allele Frequency")+ylab("Scaled Relative Frequency")+ggtitle("WEK (4)")+scale_fill_manual(name="Data",values = c("red", "seagreen3", "blue"),labels=c("4dg","All","Nsyn"))+theme_bw()
+ZAP.an=ggplot(All2.an[All2.an$pop=="ZAP" & All2.an$freq>0.0 & All2.an$freq<1.0,],aes(x=freq,y=(V3/tot)/max(V3/tot)))+geom_bar(data=All2.an[All2.an$pop=="ZAP" & All2.an$freq>0.0 & All2.an$freq<1.0,],aes(fill=data),position="dodge",stat="identity")+xlab("Allele Frequency")+ylab("Scaled Relative Frequency")+ggtitle("ZAP (4)")+scale_fill_manual(name="Data",values = c("red", "seagreen3", "blue"),labels=c("4dg","All","Nsyn"))+theme_bw()
+
+
+library(gridExtra)
+pdf("~/Documents/Research/300/AFS1_dip.an.pdf")
+grid.arrange(BEL.an,BIH.an,FOJ.an,GOR.an,nrow=2,ncol=2)
+dev.off()
+pdf("~/Documents/Research/300/AFS2_dip.an.pdf")
+grid.arrange(MIE.an,PRE.an,RZA.an,VEL.an,nrow=2,ncol=2)
+dev.off()
+pdf("~/Documents/Research/300/AFS3_tet.an.pdf")
+grid.arrange(BGS.an,BRD.an,CHO.an,DRA.an,nrow=2,ncol=2)
+dev.off()
+pdf("~/Documents/Research/300/AFS4_tet.an.pdf")
+grid.arrange(GUL.an,HOC.an,KAS.an,KOS.an,nrow=2,ncol=2)
+dev.off()
+pdf("~/Documents/Research/300/AFS5_tet.an.pdf")
+grid.arrange(KOW.an,LAC.an,RFT.an,SCH.an,nrow=2,ncol=2)
+dev.off()
+pdf("~/Documents/Research/300/AFS6_tet.an.pdf")
+grid.arrange(SPI.an,STE.an,SWA.an,TBG.an,nrow=2,ncol=2)
+dev.off()
+pdf("~/Documents/Research/300/AFS7_tet.an.pdf")
+grid.arrange(TKO.an,TRE.an,TRT.an,TZI.an,nrow=2,ncol=2)
+dev.off()
+pdf("~/Documents/Research/300/AFS8_tet.an.pdf")
+grid.arrange(WEK.an,ZAP.an,nrow=2,ncol=2)
+dev.off()
+
+
+BEL.fd.an=ggplot(All2.an[All2.an$pop=="BEL" & All2.an$freq>0.0,],aes(x=freq,y=(V3/tot)/max(V3/tot)))+geom_bar(data=All2.an[All2.an$pop=="BEL" & All2.an$freq>0.0,],aes(fill=data),position="dodge",stat="identity")+xlab("Allele Frequency")+ylab("Scaled Relative Frequency")+ggtitle("BEL (2)")+scale_fill_manual(name="Data",values = c("red", "seagreen3", "blue"),labels=c("4dg","All","Nsyn"))+theme_bw()
+BGS.fd.an=ggplot(All2.an[All2.an$pop=="BGS" & All2.an$freq>0.0,],aes(x=freq,y=(V3/tot)/max(V3/tot)))+geom_bar(data=All2.an[All2.an$pop=="BGS" & All2.an$freq>0.0,],aes(fill=data),position="dodge",stat="identity")+xlab("Allele Frequency")+ylab("Scaled Relative Frequency")+ggtitle("BGS (4)")+scale_fill_manual(name="Data",values = c("red", "seagreen3", "blue"),labels=c("4dg","All","Nsyn"))+theme_bw()
+BIH.fd.an=ggplot(All2.an[All2.an$pop=="BIH" & All2.an$freq>0.0,],aes(x=freq,y=(V3/tot)/max(V3/tot)))+geom_bar(data=All2.an[All2.an$pop=="BIH" & All2.an$freq>0.0,],aes(fill=data),position="dodge",stat="identity")+xlab("Allele Frequency")+ylab("Scaled Relative Frequency")+ggtitle("BIH (2)")+scale_fill_manual(name="Data",values = c("red", "seagreen3", "blue"),labels=c("4dg","All","Nsyn"))+theme_bw()
+BRD.fd.an=ggplot(All2.an[All2.an$pop=="BRD" & All2.an$freq>0.0,],aes(x=freq,y=(V3/tot)/max(V3/tot)))+geom_bar(data=All2.an[All2.an$pop=="BRD" & All2.an$freq>0.0,],aes(fill=data),position="dodge",stat="identity")+xlab("Allele Frequency")+ylab("Scaled Relative Frequency")+ggtitle("BRD (4)")+scale_fill_manual(name="Data",values = c("red", "seagreen3", "blue"),labels=c("4dg","All","Nsyn"))+theme_bw()
+CHO.fd.an=ggplot(All2.an[All2.an$pop=="CHO" & All2.an$freq>0.0,],aes(x=freq,y=(V3/tot)/max(V3/tot)))+geom_bar(data=All2.an[All2.an$pop=="CHO" & All2.an$freq>0.0,],aes(fill=data),position="dodge",stat="identity")+xlab("Allele Frequency")+ylab("Scaled Relative Frequency")+ggtitle("CHO (4)")+scale_fill_manual(name="Data",values = c("red", "seagreen3", "blue"),labels=c("4dg","All","Nsyn"))+theme_bw()
+DRA.fd.an=ggplot(All2.an[All2.an$pop=="DRA" & All2.an$freq>0.0,],aes(x=freq,y=(V3/tot)/max(V3/tot)))+geom_bar(data=All2.an[All2.an$pop=="DRA" & All2.an$freq>0.0,],aes(fill=data),position="dodge",stat="identity")+xlab("Allele Frequency")+ylab("Scaled Relative Frequency")+ggtitle("DRA (4)")+scale_fill_manual(name="Data",values = c("red", "seagreen3", "blue"),labels=c("4dg","All","Nsyn"))+theme_bw()
+FOJ.fd.an=ggplot(All2.an[All2.an$pop=="FOJ" & All2.an$freq>0.0,],aes(x=freq,y=(V3/tot)/max(V3/tot)))+geom_bar(data=All2.an[All2.an$pop=="FOJ" & All2.an$freq>0.0,],aes(fill=data),position="dodge",stat="identity")+xlab("Allele Frequency")+ylab("Scaled Relative Frequency")+ggtitle("FOJ (2)")+scale_fill_manual(name="Data",values = c("red", "seagreen3", "blue"),labels=c("4dg","All","Nsyn"))+theme_bw()
+GOR.fd.an=ggplot(All2.an[All2.an$pop=="GOR" & All2.an$freq>0.0,],aes(x=freq,y=(V3/tot)/max(V3/tot)))+geom_bar(data=All2.an[All2.an$pop=="GOR" & All2.an$freq>0.0,],aes(fill=data),position="dodge",stat="identity")+xlab("Allele Frequency")+ylab("Scaled Relative Frequency")+ggtitle("GOR (2)")+scale_fill_manual(name="Data",values = c("red", "seagreen3", "blue"),labels=c("4dg","All","Nsyn"))+theme_bw()
+GUL.fd.an=ggplot(All2.an[All2.an$pop=="GUL" & All2.an$freq>0.0,],aes(x=freq,y=(V3/tot)/max(V3/tot)))+geom_bar(data=All2.an[All2.an$pop=="GUL" & All2.an$freq>0.0,],aes(fill=data),position="dodge",stat="identity")+xlab("Allele Frequency")+ylab("Scaled Relative Frequency")+ggtitle("GUL (4)")+scale_fill_manual(name="Data",values = c("red", "seagreen3", "blue"),labels=c("4dg","All","Nsyn"))+theme_bw()
+HNE.fd.an=ggplot(All2.an[All2.an$pop=="HNE" & All2.an$freq>0.0,],aes(x=freq,y=(V3/tot)/max(V3/tot)))+geom_bar(data=All2.an[All2.an$pop=="HNE" & All2.an$freq>0.0,],aes(fill=data),position="dodge",stat="identity")+xlab("Allele Frequency")+ylab("Scaled Relative Frequency")+ggtitle("HNE (2)")+scale_fill_manual(name="Data",values = c("red", "seagreen3", "blue"),labels=c("4dg","All","Nsyn"))+theme_bw()
+HOC.fd.an=ggplot(All2.an[All2.an$pop=="HOC" & All2.an$freq>0.0,],aes(x=freq,y=(V3/tot)/max(V3/tot)))+geom_bar(data=All2.an[All2.an$pop=="HOC" & All2.an$freq>0.0,],aes(fill=data),position="dodge",stat="identity")+xlab("Allele Frequency")+ylab("Scaled Relative Frequency")+ggtitle("HOC (4)")+scale_fill_manual(name="Data",values = c("red", "seagreen3", "blue"),labels=c("4dg","All","Nsyn"))+theme_bw()
+KAS.fd.an=ggplot(All2.an[All2.an$pop=="KAS" & All2.an$freq>0.0,],aes(x=freq,y=(V3/tot)/max(V3/tot)))+geom_bar(data=All2.an[All2.an$pop=="KAS" & All2.an$freq>0.0,],aes(fill=data),position="dodge",stat="identity")+xlab("Allele Frequency")+ylab("Scaled Relative Frequency")+ggtitle("KAS (4)")+scale_fill_manual(name="Data",values = c("red", "seagreen3", "blue"),labels=c("4dg","All","Nsyn"))+theme_bw()
+KOS.fd.an=ggplot(All2.an[All2.an$pop=="KOS" & All2.an$freq>0.0,],aes(x=freq,y=(V3/tot)/max(V3/tot)))+geom_bar(data=All2.an[All2.an$pop=="KOS" & All2.an$freq>0.0,],aes(fill=data),position="dodge",stat="identity")+xlab("Allele Frequency")+ylab("Scaled Relative Frequency")+ggtitle("KOS (4)")+scale_fill_manual(name="Data",values = c("red", "seagreen3", "blue"),labels=c("4dg","All","Nsyn"))+theme_bw()
+KOW.fd.an=ggplot(All2.an[All2.an$pop=="KOW" & All2.an$freq>0.0,],aes(x=freq,y=(V3/tot)/max(V3/tot)))+geom_bar(data=All2.an[All2.an$pop=="KOW" & All2.an$freq>0.0,],aes(fill=data),position="dodge",stat="identity")+xlab("Allele Frequency")+ylab("Scaled Relative Frequency")+ggtitle("KOW (4)")+scale_fill_manual(name="Data",values = c("red", "seagreen3", "blue"),labels=c("4dg","All","Nsyn"))+theme_bw()
+KZL.fd.an=ggplot(All2.an[All2.an$pop=="KZL" & All2.an$freq>0.0,],aes(x=freq,y=(V3/tot)/max(V3/tot)))+geom_bar(data=All2.an[All2.an$pop=="KZL" & All2.an$freq>0.0,],aes(fill=data),position="dodge",stat="identity")+xlab("Allele Frequency")+ylab("Scaled Relative Frequency")+ggtitle("KZL (2)")+scale_fill_manual(name="Data",values = c("red", "seagreen3", "blue"),labels=c("4dg","All","Nsyn"))+theme_bw()
+LAC.fd.an=ggplot(All2.an[All2.an$pop=="LAC" & All2.an$freq>0.0,],aes(x=freq,y=(V3/tot)/max(V3/tot)))+geom_bar(data=All2.an[All2.an$pop=="LAC" & All2.an$freq>0.0,],aes(fill=data),position="dodge",stat="identity")+xlab("Allele Frequency")+ylab("Scaled Relative Frequency")+ggtitle("LAC (4)")+scale_fill_manual(name="Data",values = c("red", "seagreen3", "blue"),labels=c("4dg","All","Nsyn"))+theme_bw()
+MIE.fd.an=ggplot(All2.an[All2.an$pop=="MIE" & All2.an$freq>0.0,],aes(x=freq,y=(V3/tot)/max(V3/tot)))+geom_bar(data=All2.an[All2.an$pop=="MIE" & All2.an$freq>0.0,],aes(fill=data),position="dodge",stat="identity")+xlab("Allele Frequency")+ylab("Scaled Relative Frequency")+ggtitle("MIE (2)")+scale_fill_manual(name="Data",values = c("red", "seagreen3", "blue"),labels=c("4dg","All","Nsyn"))+theme_bw()
+PRE.fd.an=ggplot(All2.an[All2.an$pop=="PRE" & All2.an$freq>0.0,],aes(x=freq,y=(V3/tot)/max(V3/tot)))+geom_bar(data=All2.an[All2.an$pop=="PRE" & All2.an$freq>0.0,],aes(fill=data),position="dodge",stat="identity")+xlab("Allele Frequency")+ylab("Scaled Relative Frequency")+ggtitle("PRE (2)")+scale_fill_manual(name="Data",values = c("red", "seagreen3", "blue"),labels=c("4dg","All","Nsyn"))+theme_bw()
+RFT.fd.an=ggplot(All2.an[All2.an$pop=="RFT" & All2.an$freq>0.0,],aes(x=freq,y=(V3/tot)/max(V3/tot)))+geom_bar(data=All2.an[All2.an$pop=="RFT" & All2.an$freq>0.0,],aes(fill=data),position="dodge",stat="identity")+xlab("Allele Frequency")+ylab("Scaled Relative Frequency")+ggtitle("RFT (4)")+scale_fill_manual(name="Data",values = c("red", "seagreen3", "blue"),labels=c("4dg","All","Nsyn"))+theme_bw()
+RZA.fd.an=ggplot(All2.an[All2.an$pop=="RZA" & All2.an$freq>0.0,],aes(x=freq,y=(V3/tot)/max(V3/tot)))+geom_bar(data=All2.an[All2.an$pop=="RZA" & All2.an$freq>0.0,],aes(fill=data),position="dodge",stat="identity")+xlab("Allele Frequency")+ylab("Scaled Relative Frequency")+ggtitle("RZA (2)")+scale_fill_manual(name="Data",values = c("red", "seagreen3", "blue"),labels=c("4dg","All","Nsyn"))+theme_bw()
+SCH.fd.an=ggplot(All2.an[All2.an$pop=="SCH" & All2.an$freq>0.0,],aes(x=freq,y=(V3/tot)/max(V3/tot)))+geom_bar(data=All2.an[All2.an$pop=="SCH" & All2.an$freq>0.0,],aes(fill=data),position="dodge",stat="identity")+xlab("Allele Frequency")+ylab("Scaled Relative Frequency")+ggtitle("SCH (4)")+scale_fill_manual(name="Data",values = c("red", "seagreen3", "blue"),labels=c("4dg","All","Nsyn"))+theme_bw()
+SNO.fd.an=ggplot(All2.an[All2.an$pop=="SNO" & All2.an$freq>0.0,],aes(x=freq,y=(V3/tot)/max(V3/tot)))+geom_bar(data=All2.an[All2.an$pop=="SNO" & All2.an$freq>0.0,],aes(fill=data),position="dodge",stat="identity")+xlab("Allele Frequency")+ylab("Scaled Relative Frequency")+ggtitle("SNO (2)")+scale_fill_manual(name="Data",values = c("red", "seagreen3", "blue"),labels=c("4dg","All","Nsyn"))+theme_bw()
+SPI.fd.an=ggplot(All2.an[All2.an$pop=="SPI" & All2.an$freq>0.0,],aes(x=freq,y=(V3/tot)/max(V3/tot)))+geom_bar(data=All2.an[All2.an$pop=="SPI" & All2.an$freq>0.0,],aes(fill=data),position="dodge",stat="identity")+xlab("Allele Frequency")+ylab("Scaled Relative Frequency")+ggtitle("SPI (4)")+scale_fill_manual(name="Data",values = c("red", "seagreen3", "blue"),labels=c("4dg","All","Nsyn"))+theme_bw()
+STE.fd.an=ggplot(All2.an[All2.an$pop=="STE" & All2.an$freq>0.0,],aes(x=freq,y=(V3/tot)/max(V3/tot)))+geom_bar(data=All2.an[All2.an$pop=="STE" & All2.an$freq>0.0,],aes(fill=data),position="dodge",stat="identity")+xlab("Allele Frequency")+ylab("Scaled Relative Frequency")+ggtitle("STE (4)")+scale_fill_manual(name="Data",values = c("red", "seagreen3", "blue"),labels=c("4dg","All","Nsyn"))+theme_bw()
+SWA.fd.an=ggplot(All2.an[All2.an$pop=="SWA" & All2.an$freq>0.0,],aes(x=freq,y=(V3/tot)/max(V3/tot)))+geom_bar(data=All2.an[All2.an$pop=="SWA" & All2.an$freq>0.0,],aes(fill=data),position="dodge",stat="identity")+xlab("Allele Frequency")+ylab("Scaled Relative Frequency")+ggtitle("SWA (4)")+scale_fill_manual(name="Data",values = c("red", "seagreen3", "blue"),labels=c("4dg","All","Nsyn"))+theme_bw()
+SZI.fd.an=ggplot(All2.an[All2.an$pop=="SZI" & All2.an$freq>0.0,],aes(x=freq,y=(V3/tot)/max(V3/tot)))+geom_bar(data=All2.an[All2.an$pop=="SZI" & All2.an$freq>0.0,],aes(fill=data),position="dodge",stat="identity")+xlab("Allele Frequency")+ylab("Scaled Relative Frequency")+ggtitle("SZI (2)")+scale_fill_manual(name="Data",values = c("red", "seagreen3", "blue"),labels=c("4dg","All","Nsyn"))+theme_bw()
+TBG.fd.an=ggplot(All2.an[All2.an$pop=="TBG" & All2.an$freq>0.0,],aes(x=freq,y=(V3/tot)/max(V3/tot)))+geom_bar(data=All2.an[All2.an$pop=="TBG" & All2.an$freq>0.0,],aes(fill=data),position="dodge",stat="identity")+xlab("Allele Frequency")+ylab("Scaled Relative Frequency")+ggtitle("TBG (4)")+scale_fill_manual(name="Data",values = c("red", "seagreen3", "blue"),labels=c("4dg","All","Nsyn"))+theme_bw()
+TKO.fd.an=ggplot(All2.an[All2.an$pop=="TKO" & All2.an$freq>0.0,],aes(x=freq,y=(V3/tot)/max(V3/tot)))+geom_bar(data=All2.an[All2.an$pop=="TKO" & All2.an$freq>0.0,],aes(fill=data),position="dodge",stat="identity")+xlab("Allele Frequency")+ylab("Scaled Relative Frequency")+ggtitle("TKO (4)")+scale_fill_manual(name="Data",values = c("red", "seagreen3", "blue"),labels=c("4dg","All","Nsyn"))+theme_bw()
+TRD.fd.an=ggplot(All2.an[All2.an$pop=="TRD" & All2.an$freq>0.0,],aes(x=freq,y=(V3/tot)/max(V3/tot)))+geom_bar(data=All2.an[All2.an$pop=="TRD" & All2.an$freq>0.0,],aes(fill=data),position="dodge",stat="identity")+xlab("Allele Frequency")+ylab("Scaled Relative Frequency")+ggtitle("TRD (2)")+scale_fill_manual(name="Data",values = c("red", "seagreen3", "blue"),labels=c("4dg","All","Nsyn"))+theme_bw()
+TRE.fd.an=ggplot(All2.an[All2.an$pop=="TRE" & All2.an$freq>0.0,],aes(x=freq,y=(V3/tot)/max(V3/tot)))+geom_bar(data=All2.an[All2.an$pop=="TRE" & All2.an$freq>0.0,],aes(fill=data),position="dodge",stat="identity")+xlab("Allele Frequency")+ylab("Scaled Relative Frequency")+ggtitle("TRE (4)")+scale_fill_manual(name="Data",values = c("red", "seagreen3", "blue"),labels=c("4dg","All","Nsyn"))+theme_bw()
+TRT.fd.an=ggplot(All2.an[All2.an$pop=="TRT" & All2.an$freq>0.0,],aes(x=freq,y=(V3/tot)/max(V3/tot)))+geom_bar(data=All2.an[All2.an$pop=="TRT" & All2.an$freq>0.0,],aes(fill=data),position="dodge",stat="identity")+xlab("Allele Frequency")+ylab("Scaled Relative Frequency")+ggtitle("TRT (4)")+scale_fill_manual(name="Data",values = c("red", "seagreen3", "blue"),labels=c("4dg","All","Nsyn"))+theme_bw()
+TZI.fd.an=ggplot(All2.an[All2.an$pop=="TZI" & All2.an$freq>0.0,],aes(x=freq,y=(V3/tot)/max(V3/tot)))+geom_bar(data=All2.an[All2.an$pop=="TZI" & All2.an$freq>0.0,],aes(fill=data),position="dodge",stat="identity")+xlab("Allele Frequency")+ylab("Scaled Relative Frequency")+ggtitle("TZI (4)")+scale_fill_manual(name="Data",values = c("red", "seagreen3", "blue"),labels=c("4dg","All","Nsyn"))+theme_bw()
+VEL.fd.an=ggplot(All2.an[All2.an$pop=="VEL" & All2.an$freq>0.0,],aes(x=freq,y=(V3/tot)/max(V3/tot)))+geom_bar(data=All2.an[All2.an$pop=="VEL" & All2.an$freq>0.0,],aes(fill=data),position="dodge",stat="identity")+xlab("Allele Frequency")+ylab("Scaled Relative Frequency")+ggtitle("VEL (2)")+scale_fill_manual(name="Data",values = c("red", "seagreen3", "blue"),labels=c("4dg","All","Nsyn"))+theme_bw()
+VID.fd.an=ggplot(All2.an[All2.an$pop=="VID" & All2.an$freq>0.0,],aes(x=freq,y=(V3/tot)/max(V3/tot)))+geom_bar(data=All2.an[All2.an$pop=="VID" & All2.an$freq>0.0,],aes(fill=data),position="dodge",stat="identity")+xlab("Allele Frequency")+ylab("Scaled Relative Frequency")+ggtitle("VID (2)")+scale_fill_manual(name="Data",values = c("red", "seagreen3", "blue"),labels=c("4dg","All","Nsyn"))+theme_bw()
+WEK.fd.an=ggplot(All2.an[All2.an$pop=="WEK" & All2.an$freq>0.0,],aes(x=freq,y=(V3/tot)/max(V3/tot)))+geom_bar(data=All2.an[All2.an$pop=="WEK" & All2.an$freq>0.0,],aes(fill=data),position="dodge",stat="identity")+xlab("Allele Frequency")+ylab("Scaled Relative Frequency")+ggtitle("WEK (4)")+scale_fill_manual(name="Data",values = c("red", "seagreen3", "blue"),labels=c("4dg","All","Nsyn"))+theme_bw()
+ZAP.fd.an=ggplot(All2.an[All2.an$pop=="ZAP" & All2.an$freq>0.0,],aes(x=freq,y=(V3/tot)/max(V3/tot)))+geom_bar(data=All2.an[All2.an$pop=="ZAP" & All2.an$freq>0.0,],aes(fill=data),position="dodge",stat="identity")+xlab("Allele Frequency")+ylab("Scaled Relative Frequency")+ggtitle("ZAP (4)")+scale_fill_manual(name="Data",values = c("red", "seagreen3", "blue"),labels=c("4dg","All","Nsyn"))+theme_bw()
+
+library(gridExtra)
+pdf("~/Documents/Research/300/AFS1_dip.fd.an.pdf")
+grid.arrange(BEL.fd.an,BIH.fd.an,FOJ.fd.an,GOR.fd.an,nrow=2,ncol=2)
+dev.off()
+pdf("~/Documents/Research/300/AFS2_dip.fd.an.pdf")
+grid.arrange(MIE.fd.an,PRE.fd.an,RZA.fd.an,VEL.fd.an,nrow=2,ncol=2)
+dev.off()
+pdf("~/Documents/Research/300/AFS3_tet.fd.an.pdf")
+grid.arrange(BGS.fd.an,BRD.fd.an,CHO.fd.an,DRA.fd.an,nrow=2,ncol=2)
+dev.off()
+pdf("~/Documents/Research/300/AFS4_tet.fd.an.pdf")
+grid.arrange(GUL.fd.an,HOC.fd.an,KAS.fd.an,KOS.fd.an,nrow=2,ncol=2)
+dev.off()
+pdf("~/Documents/Research/300/AFS5_tet.fd.an.pdf")
+grid.arrange(KOW.fd.an,LAC.fd.an,RFT.fd.an,SCH.fd.an,nrow=2,ncol=2)
+dev.off()
+pdf("~/Documents/Research/300/AFS6_tet.fd.an.pdf")
+grid.arrange(SPI.fd.an,STE.fd.an,SWA.fd.an,TBG.fd.an,nrow=2,ncol=2)
+dev.off()
+pdf("~/Documents/Research/300/AFS7_tet.fd.an.pdf")
+grid.arrange(TKO.fd.an,TRE.fd.an,TRT.fd.an,TZI.fd.an,nrow=2,ncol=2)
+dev.off()
+pdf("~/Documents/Research/300/AFS8_tet.fd.an.pdf")
+grid.arrange(WEK.fd.an,ZAP.fd.an,nrow=2,ncol=2)
+dev.off()
+
+pop_list=["BEL","BGS","BIH","BRD","CHO","DRA","FOJ","GOR","GUL","HNE","HOC","KAS","KOS","KOW","KZL","LAC","MIE","PRE","RFT","RZA","SCH","SNO","SPI","STE","SWA","SZI","TBG","TKO","TRD","TRE","TRT","TZI","VEL","VID","WEK","ZAP"]
+
+for pop in pop_list:
+    print(pop + '=ggplot(ALL1[ALL1$pop=="' + pop + '" & ALL1$V2>0 & ALL1$V2/ALL1$tot<1.0,],aes(x=V2/max(V2),y=(V3/tot)/max(V3/tot)))+geom_bar(data=ALL1[ALL1$pop=="' + pop + '" & ALL1$V2>0 & ALL1$V2/ALL1$tot<1.0,],aes(fill=data),position="dodge",stat="identity")+xlab("Allele Frequency")+ylab("Scaled Relative Frequency")+ggtitle("' + pop + '")')
+
+########### PRIVATE ALLELES ##############
+
+wc1=read.table("~/Documents/Research/300/PrivateAlleles/private_min0.3_max0.05_w.carpathian.TetFreqs.txt")
+di1=read.table("~/Documents/Research/300/PrivateAlleles/private_min0.3_max0.05_dinaric.TetFreqs.txt")
+di2=read.table("~/Documents/Research/300/PrivateAlleles/private_min0.3_max0.0001_dinaric.TetFreqs.txt")
+sc1=read.table("~/Documents/Research/300/PrivateAlleles/private_min0.3_max0.05_s.carpathian.TetFreqs.txt")
+pa1=read.table("~/Documents/Research/300/PrivateAlleles/private_min0.3_max0.05_pannonian.TetFreqs.txt")
+pa2=read.table("~/Documents/Research/300/PrivateAlleles/private_min0.3_max0.0001_pannonian.TetFreqs.txt")
+ba1=read.table("~/Documents/Research/300/PrivateAlleles/private_min0.3_max0.05_baltic.TetFreqs.txt")
+
+wc1=rename(wc1,c("V1"="pop","V2"="scaff","V3"="pos","V4"="freq"))
+di1=rename(di1,c("V1"="pop","V2"="scaff","V3"="pos","V4"="freq"))
+di2=rename(di2,c("V1"="pop","V2"="scaff","V3"="pos","V4"="freq"))
+sc1=rename(sc1,c("V1"="pop","V2"="scaff","V3"="pos","V4"="freq"))
+pa1=rename(pa1,c("V1"="pop","V2"="scaff","V3"="pos","V4"="freq"))
+pa2=rename(pa2,c("V1"="pop","V2"="scaff","V3"="pos","V4"="freq"))
+ba1=rename(ba1,c("V1"="pop","V2"="scaff","V3"="pos","V4"="freq"))
+
+ba1=ba1[!duplicated(ba1),]
+wc1=wc1[!duplicated(wc1),]
+sc1=sc1[!duplicated(sc1),]
+pa1=pa1[!duplicated(pa1),]
+di1=di1[!duplicated(di1),]
+di2=di2[!duplicated(di2),]
+pa2=pa2[!duplicated(pa2),]
+
+write.table(dcast(ba1,value.var = "freq",scaff+pos~pop),file="~/Documents/Research/300/PrivateAlleles/PrivateAlleles_Baltic_Min0.3_Max0.05.txt",row.names=F,quote=F)
+write.table(dcast(wc1,value.var = "freq",scaff+pos~pop),file="~/Documents/Research/300/PrivateAlleles/PrivateAlleles_W.Carpathian_Min0.3_Max0.05.txt",row.names=F,quote=F)
+write.table(dcast(sc1,value.var = "freq",scaff+pos~pop),file="~/Documents/Research/300/PrivateAlleles/PrivateAlleles_S.Carpathian_Min0.3_Max0.05.txt",row.names=F,quote=F)
+write.table(dcast(pa1,value.var = "freq",scaff+pos~pop),file="~/Documents/Research/300/PrivateAlleles/PrivateAlleles_Pannonian_Min0.3_Max0.05.txt",row.names=F,quote=F)
+write.table(dcast(di1,value.var = "freq",scaff+pos~pop),file="~/Documents/Research/300/PrivateAlleles/PrivateAlleles_Dinaric_Min0.3_Max0.05.txt",row.names=F,quote=F)
+write.table(dcast(di2,value.var = "freq",scaff+pos~pop),file="~/Documents/Research/300/PrivateAlleles/PrivateAlleles_Dinaric_Min0.3_Max0.0001.txt",row.names=F,quote=F)
+write.table(dcast(pa2,value.var = "freq",scaff+pos~pop),file="~/Documents/Research/300/PrivateAlleles/PrivateAlleles_Pannonian_Min0.3_Max0.0001.txt",row.names=F,quote=F)
