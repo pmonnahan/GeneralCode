@@ -123,4 +123,4 @@ for iii, vcf in enumerate(vcf_list):
                str(M) + '\n')
 
 
-    out1.close()
+out1.close()
