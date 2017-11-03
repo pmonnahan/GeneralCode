@@ -169,17 +169,56 @@ all=rbind(dips,tets)
 slim=all[all$Population!="HNE",] # only keep populations with same sample size in slim.
 dips=slim[slim$Ploidy==2,]
 tets=slim[slim$Ploidy==4,]
-xx.dips=tapply(dips$R2,dips$End,mean)
+
+
+t.dips=read.table("~/Documents/Research/300/LD/All.DownSample.R2.txt",head=T)
+t.tets=read.table("~/Documents/Research/300/LD/All.Tets.DownSample.R2.txt",head=T)
+all=rbind(t.dips,t.tets)
+xx.dips=tapply(t.dips$R2,t.dips$End,mean)
+xx.tets=tapply(t.tets$R2,t.tets$End,mean)
 means.tets=data.frame(key=as.numeric(names(xx.tets)),value=xx.tets)
 means.dips=data.frame(key=as.numeric(names(xx.dips)),value=xx.dips)
-ps=rbind(means.tets,means.dips)
-fig=ggplot(slim,aes(y=R2,x=End/1000,color=Population,linetype=Ploidy))+geom_line(alpha=0.4)+geom_line(data=ps,aes(y=value,x=key/1000,linetype=Ploidy),color='black')+scale_x_continuous(trans=log_trans(),breaks=log_breaks(9),labels = comma)+ylab(expression(r^" 2"))+xlab("Distance (kb)")+ theme_bw() + theme(panel.border = element_blank(), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line.x = element_line(colour = "black"), axis.line.y = element_line(colour = "black"),axis.title.y = element_text(size = 18))
+means.tets['Ploidy']="4"
+means.dips['Ploidy']="2"
+means=rbind(means.dips,means.tets)
+all$Ploidy=as.factor(all$Ploidy)
+means$Ploidy=as.factor(means$Ploidy)
 
+ind5=0.270553
+ind10=0.118681
+dif=ind5-ind10
+ind5-dif*0.75 #Linear interpolation of random simulation results for expected r^2.  Allowed for 1 out of 8 individuals to be missing in analyses, so used 0.75 as interpolation value
+fig.ds=ggplot(all,aes(y=R2,x=End/1000,color=Population,linetype=Ploidy))+geom_line(alpha=0.4)+geom_line(aes(y=0.156,linetype="dashed"),color="black")+geom_line(data=means,aes(y=value,x=key/1000,linetype=Ploidy),color='black')+scale_x_continuous(trans=log_trans(),breaks=log_breaks(9),labels = comma)+ylab(expression(r^" 2"))+xlab("Distance (kb)")+ theme_bw() + theme(panel.border = element_blank(), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line.x = element_line(colour = "black"), axis.line.y = element_line(colour = "black"),axis.title.y = element_text(size = 18))
 
-> t.dips=read.table("~/Documents/Research/300/All.DownSample.R2.txt",head=T)
-> t.tets=read.table("~/Documents/Research/300/All.Tets.DownSample.R2.txt",head=T)
+cors=c()  # Did not end up using
+for (i in 1:10000){
+    ss=data.frame("V1"=rbinom(8,2,0.5),"V2"=rbinom(8,2,0.5))
+    c=cor(ss$V1,ss$V2)
+    cors=append(cors,c^2)
+}
 
-fig.ds=ggplot(all1,aes(y=R2,x=End/1000,color=Population,linetype=Ploidy))+geom_line(alpha=0.4)+geom_line(data=means,aes(y=value,x=key/1000,linetype=Ploidy),color='black')+scale_x_continuous(trans=log_trans(),breaks=log_breaks(9),labels = comma)+ylab(expression(r^" 2"))+xlab("Distance (kb)")+ theme_bw() + theme(panel.border = element_blank(), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line.x = element_line(colour = "black"), axis.line.y = element_line(colour = "black"),axis.title.y = element_text(size = 18))
+all=merge(all,wp.gen[,c("Population","Sqrt_div")],by="Population")
+all.1k=all[all$End==1000,]
+all.10k=all[all$End==10000,]
+all.1Mb=all[all$End==1001000,]
+all.100k=all[all$End==101000,]
+
+k=list(unique(all$End))
+j=c()
+for (i in 1:length(k[[1]])){
+    c=lm(R2~Sqrt_div,data=all[all$End==k[[1]][i],])
+    d=all[all$End==k[[1]][i] & all$Population!="KOW",]
+    print(cor.test(d$R2,d$Sqrt_div,method="spearman"))
+}
+
+kk=lme(R2~1,random=~1|Ploidy,data=all.1Mb[all.1Mb$Population!="KOW",])
+VarCorr(jj)  #Variance components of random effect one way anova
+VarCorr(kk)  #Variance components of random effect one way anova
+
+jj=lm(R2~Ploidy + End + Sqrt_div,data=all)
+all['varR']=all$R2^2-all$R2_squ
+fig.varR=ggplot(all,aes(y=varR,x=End/1000,color=Population,linetype=Ploidy))+geom_line(alpha=0.4)+scale_x_continuous(trans=log_trans(),breaks=log_breaks(9),labels = comma)+ylab(expression(paste("Var[",r^" 2","]",sep="")))+xlab("Distance (kb)")+ theme_bw() + theme(panel.border = element_blank(), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line.x = element_line(colour = "black"), axis.line.y = element_line(colour = "black"),axis.title.y = element_text(size = 18))
+
 
 # Values differ between downsample and not downsampled data.  I believe it is because I used different values for minimum fraction of individuals genotyped.
 
@@ -207,23 +246,20 @@ scaf4a=ggplot(ld[ld$scaff==4 & ld$WS=='ws100kb',],aes(y=V9,x=V5,color=pop,linety
 scaf1a=ggplot(ld[ld$scaff==1 & ld$WS=='ws100kb',],aes(y=V9,x=V5,color=pop,linetype=V2))+geom_line(alpha=0.4)+geom_line(data=means[means$scaff==1 & means$WS=='ws100kb',],aes(y=V9,x=V5,linetype=V2),color='black')+ylab(expression(r^" 2"))+xlab("Distance (kb)")+ theme_bw() + theme(panel.border = element_blank(), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line.x = element_line(colour = "black"), axis.line.y = element_line(colour = "black"),axis.title.y = element_text(size = 18))+ggtitle("Scaf 1")
 scaf3a=ggplot(ld[ld$scaff==3 & ld$WS=='ws100kb',],aes(y=V9,x=V5,color=pop,linetype=V2))+geom_line(alpha=0.4)+geom_line(data=means[means$scaff==3 & means$WS=='ws100kb',],aes(y=V9,x=V5,linetype=V2),color='black')+ylab(expression(r^" 2"))+xlab("Distance (kb)")+ theme_bw() + theme(panel.border = element_blank(), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line.x = element_line(colour = "black"), axis.line.y = element_line(colour = "black"),axis.title.y = element_text(size = 18))+ggtitle("Scaf 3")
 
-03-04-17 Regression analysis
-gd=read.table("~/Documents/Research/300/GeneDensity_WS50.0k.txt",head=T)
-m=read.table("~/Documents/Research/300/Missigness_WS50k_DP8.txt",head=T)
-dg=read.table("~/Documents/Research/300/AllPops_4dg_5ind_WS50.0k_MS1_WPM_New.txt",head=T)
-ns=read.table("~/Documents/Research/300/AllPops_NSynAll_WS50.0k_MS1_BPM_New.txt",head=T) # Had to add extra field to Genome entries because bpm.py did not add Dxy to Genome entry
+
+#####  03-04-17 Linked Selection Regression analysis #####
+gd=read.table("~/Documents/Research/300/AccessoryInfo/GeneDensity_WS50.0k.txt",head=T)
+m=read.table("~/Documents/Research/300/AccessoryInfo/Missigness_WS50k_DP8.txt",head=T)
+dg=read.table("~/Documents/Research/300/GenomeScan/Data/AllPops_4dg_5ind_WS50.0k_MS1_WPM_New.txt",head=T)
+ns=read.table("~/Documents/Research/300/GenomeScan/Data/AllPops_NSynAll_WS50.0k_MS1_BPM_New.txt",head=T) 
 ns$outname=as.character(ns$outname)
 ns['pop1']=substr(ns$outname,1,3)
 ns['pop2']=substr(ns$outname,4,6)
 dg=dg
 pop1=list(unique(ns$pop1))
 pop2=list(unique(ns$pop2))
-pops=append(unlist(pop1)A,unlist(pop2))
+pops=append(unlist(pop1),unlist(pop2))
 pops=unique(pops)
-
-
-
-
 
 Ns=data.frame()
 for(i in 1:length(pops)){
@@ -240,26 +276,13 @@ dg=dg[dg$scaff!='Genome',]
 dg['sqrt_div']=sqrt(dg$Diversity)
 dg=dg[!duplicated(dg[,c("pop","scaff","end")]),]
 dg.avg=aggregate(sqrt_div~scaff+end,data=dg,mean)
+
 Ns=merge(Ns,dg[,c("pop","ploidy","scaff","end")],by=c("pop","scaff","end"))
-Ns.avg=aggregate(dxy~scaff+end,data=Ns,mean)
-dg.avg.dip=aggregate(sqrt_div~scaff+end,data=dg[dg$ploidy==2,],mean)
-Ns.avg.dip=aggregate(dxy~scaff+end,data=Ns[Ns$ploidy==2,],mean)
-dg.avg.tet=aggregate(sqrt_div~scaff+end,data=dg[dg$ploidy==4,],mean)
-Ns.avg.tet=aggregate(dxy~scaff+end,data=Ns[Ns$ploidy==4,],mean)
 
 data1=merge(Ns,dg,by=c("scaff","end","pop","ploidy"))
 data1=merge(data1,gd,by=c("scaff","end"))
 data1=merge(data1,m,by=c("scaff","end"))
 data1['sqrt_div']=sqrt(data1$Diversity)
-data.avg=merge(Ns.avg,dg.avg,by=c("scaff","end"))
-data.avg=merge(data.avg,gd,by=c("scaff","end"))
-data.avg=merge(data.avg,m,by=c("scaff","end"))
-dip.avg=merge(Ns.avg.dip,dg.avg.dip,by=c("scaff","end"))
-dip.avg=merge(dip.avg,gd,by=c("scaff","end"))
-dip.avg=merge(dip.avg,m,by=c("scaff","end"))
-tet.avg=merge(Ns.avg.tet,dg.avg.tet,by=c("scaff","end"))
-tet.avg=merge(tet.avg,gd,by=c("scaff","end"))
-tet.avg=merge(tet.avg,m,by=c("scaff","end"))
 
 #All together analysis
 data1$pop=as.factor(data1$pop)
@@ -270,22 +293,162 @@ reg=lmer(sqrt_div ~ dxy + GD + missing + ploidy + dxy:ploidy + (1 | pop:ploidy),
 reg2=lmer(sqrt_div ~ dxy + GD + missing + ploidy + (1 | pop:ploidy),data=data1[data1$num_snps>=10,])
 reg1=lmer(sqrt_div ~ dxy + GD + missing + (1|pop) + dxy:pop,data=data1[data1$num_snps>=10,])
 
-reg.avg=lm(sqrt_div ~ dxy + GD + missing, data=data.avg)
-reg.dip.avg=lm(sqrt_div ~ dxy + GD + missing, data=dip.avg)
-reg.tet.avg=lm(sqrt_div ~ dxy + GD + missing, data=tet.avg)
-
 Anova(reg,type="III")
 Anova(reg2,type="III")
 Anova(reg1,type="III")
-Anova(reg.avg,type="III")
-Anova(reg.dip.avg,type="III")
-Anova(reg.tet.avg,type="III")
+
+# Addition of Sqrt_div
+wp4dg.5=read.table("~/Documents/Research/300/GenomeScan/Data/AllPops_4dg_5ind_WS50.0k_MS1_WPM_New.txt",head=T)
+wp.gen=wp4dg.5[wp4dg.5$scaff=="Genome",]
+data1=merge(data1,wp.gen[,c("pop","Diversity","D")],by="pop")
+data1["Sqrt_div"]=sqrt(data1$Diversity.y)
+
+data3=data1[data1$num_snps>20,]
+data3=data3[!data3$pop %in% c("WEK","SZI","SNO","KZL","SCH","CHO","ZAP","TZI","RZA"),] # Remove all populations with less than 2k windows with > 20 SNPs
+reg=lm(sqrt_div ~ dxy + GD + missing + ploidy + Sqrt_div *D*dxy*ploidy,data=data3)
+Anova(reg,type="III")
+
+dips=data3[data3$ploidy==2.0,]
+tets=data3[data3$ploidy==4.0,]
+ggplot(data=tets,aes(x=dxy,y=sqrt_div,color=pop,linetype=ploidy))+geom_smooth(method="lm",fill=NA)+geom_smooth(data=dips,aes(x=dxy,y=sqrt_div,color=pop),fill=NA,method="lm")+ylab("4dg Diversity")+xlab("Avg. Pairwise Nonsyn. Divergence")+theme_bw()+theme(axis.title.x=element_text(size=16),axis.title.y=element_text(size=16),axis.text.x=element_text(size=14),axis.text.y=element_text(size=14),plot.title=element_text(size=16),legend.title=element_text(size=14),legend.text=element_text(size=12))
+ggplot(data=tets,aes(x=dxy,y=sqrt_div,group=pop,linetype=ploidy))+geom_smooth(method="lm",fill=NA)+geom_smooth(data=dips,aes(x=dxy,y=sqrt_div,group=pop),fill=NA,method="lm")+ylab("4dg Diversity")+xlab("Avg. Pairwise Nonsyn. Divergence")+theme_bw()+theme(axis.title.x=element_text(size=16),axis.title.y=element_text(size=16),axis.text.x=element_text(size=14),axis.text.y=element_text(size=14),plot.title=element_text(size=16))
+
+ggplot()+ geom_line(data=tets,aes(x=dxy,y=sqrt_div,group=pop,color="blue"),linetype ="solid",stat="smooth",method = "lm", formula = y ~ x,size = 0.5,alpha = 0.3)+geom_smooth(data=tets,aes(x=dxy,y=sqrt_div),method="lm",fill=NA,color="blue",linetype="dashed")+geom_line(data=dips,aes(x=dxy,y=sqrt_div,group=pop,color="red"),linetype ="solid",stat="smooth",method = "lm", formula = y ~ x,size = 0.5,alpha=0.3)+geom_smooth(data=dips,aes(x=dxy,y=sqrt_div),method="lm",fill=NA,color="red",linetype="dashed")+ylab("4dg Diversity")+scale_colour_manual(name = 'Ploidy',values =c('red'='red','blue'='blue'), labels = c('4','2'))+xlab("Avg. Pairwise Nonsyn. Divergence")+theme_bw()+theme(axis.title.x=element_text(size=16),axis.title.y=element_text(size=16),axis.text.x=element_text(size=14),axis.text.y=element_text(size=14),plot.title=element_text(size=16),legend.justification=c(0.9,0.9),legend.position=c(0.9,0.9),legend.title=element_text(size=16),legend.text=element_text(size=14))
+
+df=data.frame("pop"=as.character(),"b"=as.numeric())
+pops=levels(data3$pop)
+pops=pops[!pops %in% c("WEK","SZI","SNO","KZL","SCH","CHO","ZAP","TZI","RZA")]  #Prior to removing these low data populations, there was a negative relationship b/n Sqrt_div on sqrt_div~dxy slope
+for (i in 1:length(pops)){
+    bb=data1[data1$pop==pops[i] & data1$num_snps>20,]
+    rr=lm(sqrt_div ~ dxy + GD + missing,data=bb)
+    df=rbind(df,data.frame("pop"=pops[i],"b"=rr$coefficients[2]))
+}
+df=merge(df,data3[,c("pop","Sqrt_div","D.y","ploidy")],by="pop")
+df=unique(df)
+gg=lm(df$b~df$D.y)
+summary(gg)  # Positive, but non-significant effect of Sqrt_div on sqrt_div~dxy slope
+
+
+reg.d=lm(sqrt_div ~ dxy + GD + missing + Sqrt_div + Sqrt_div:dxy,data=dips[dips$num_snps>=20,])
+reg.d1=lm(sqrt_div ~ dxy + GD + missing + pop,data=dips[dips$num_snps>=20,])
+reg.t=lm(sqrt_div ~ dxy + GD + missing + Sqrt_div + Sqrt_div:dxy,data=tets[tets$num_snps>=20,])
+
+reg.d=lm(sqrt_div ~ dxy + GD + missing + pop + pop:dxy,data=dips[dips$num_snps>=20,])
+reg.d1=lm(sqrt_div ~ dxy + GD + missing + pop,data=dips[dips$num_snps>=20,])
+reg.t=lm(sqrt_div ~ dxy + GD + missing + pop + pop:dxy,data=tets[tets$num_snps>=20,])
+
 Anova(reg.d,type="III")
 Anova(reg.d1,type="III")
 Anova(reg.t,type="III")
 
+summary(reg.d)
+summary(reg.t)
 
+##### Model averaging after addition of Genome-wide Tajima's D to model fit ######
+library(MuMIn)
+options(na.action = "na.fail") 
 
+contrasts(data3$ploidy)=contr.poly(2)
+contrasts(data3$pop)=contr.poly(36)
+
+data.d=data3[data3$ploidy=="2",]
+data.t=data3[data3$ploidy=="4",]
+
+reg=lm(sqrt_div ~ dxy + missing + GD + ploidy + Sqrt_div + dxy:GD:missing + dxy:GD:Sqrt_div + dxy:GD:ploidy + dxy:missing:Sqrt_div + dxy:missing:ploidy + dxy:Sqrt_div:ploidy + GD:missing:Sqrt_div + GD:missing:ploidy + GD:Sqrt_div:ploidy + missing:Sqrt_div:ploidy + dxy:GD + dxy:missing + dxy:Sqrt_div + dxy:ploidy + GD:missing + GD:Sqrt_div + GD:ploidy + missing:Sqrt_div + missing:ploidy + Sqrt_div:ploidy ,data=data3)
+
+reg1=lm(sqrt_div ~ dxy*GDM*ploidy,data=data3)
+ms2=dredge(reg1)
+confset.95p.1 <- get.models(ms2, cumsum(weight) <= .95)
+avgmod.95p.1 <- model.avg(confset.95p.1)
+aa1=model.avg(ms2, subset = delta < 4)
+
+reg.d=lm(sqrt_div ~ dxy*GD*missing*Sqrt_div ,data=data.d)
+reg.t=lm(sqrt_div ~ dxy*GD*missing*Sqrt_div ,data=data.t)
+
+reg=lm(sqrt_div ~ dxy + GD + missing + ploidy + Sqrt_div + D.y + Sqrt_div:D.y + dxy:Sqrt_div + dxy:D.y + ploidy:Sqrt_div + ploidy:D.y + dxy:ploidy + dxy:Sqrt_div:D.y + ploidy:Sqrt_div:D.y + dxy:ploidy:D.y ,data=data3)
+reg.d=lm(sqrt_div ~ dxy + GD + missing  + Sqrt_div + D.y + Sqrt_div:D.y + dxy:Sqrt_div + dxy:D.y + dxy:Sqrt_div:D.y ,data=data.d)
+reg.t=lm(sqrt_div ~ dxy + GD + missing  + Sqrt_div + D.y + Sqrt_div:D.y + dxy:Sqrt_div + dxy:D.y + dxy:Sqrt_div:D.y,data=data.t)
+# generate "all possible" combinations of model
+ms1=dredge(reg)
+ms.d=dredge(reg.d)
+ms.t=dredge(reg.t)
+
+# Find model subsets and average using change in AIC...
+aa=model.avg(ms1, subset = delta < 4)
+#cumulative sum of Akaike weights
+confset.95p <- get.models(ms1, cumsum(weight) <= .95)
+avgmod.95p <- model.avg(confset.95p)
+
+confset.95p.d <- get.models(ms.d, cumsum(weight) <= .95)
+avgmod.95p.d <- model.avg(confset.95p.d)
+
+confset.95p.t <- get.models(ms.t, cumsum(weight) <= .95)
+avgmod.95p.t <- model.avg(confset.95p.t)
+
+confset.all <- get.models(ms1)
+avgmod.all <- model.avg(confset.all)
+
+summary(aa)
+summary(avgmod.95p)
+
+summary(avgmod.95p.d)
+summary(avgmod.95p.t)
+
+#### Post-abandoning of model averaging ####
+
+# combined GD and missingness into one variable due to high degree of multicollinearity...GD*(1-missing) to represent windows with high gene density and low missingness
+
+data1['GDM']=data1$GD * (1-data1$missing)
+data3=data1[data1$num_snps>20,]
+data3=data3[!data3$pop %in% c("WEK","SZI","SNO","KZL","SCH","CHO","ZAP","TZI","RZA"),] # Remove all populations with less than 2k windows with > 20 SNPs
+
+data4=data1[data1$num_snps>20,]
+data4=data4[!data4$pop %in% c("WEK","SZI","SNO","KZL","SCH","CHO","ZAP","TZI","RZA","DRA","LAC","KOW","STE","TBG"),] # Remove all populations with less than 2k windows with > 20 SNPs
+
+contrasts(data3$ploidy)=contr.poly(2)
+contrasts(data3$pop)=contr.poly(36) 
+
+contrasts(data4$ploidy)=contr.poly(2)
+contrasts(data4$pop)=contr.poly(36) 
+
+reg=lm(sqrt_div ~ dxy*GDM*ploidy,data=data3)
+reg1=lmer(sqrt_div ~ dxy*GDM*ploidy + (1|pop),data=data3)
+reg2=lmer(sqrt_div ~ dxy*GDM*ploidy + (1|pop),data=data4)
+
+#results from reg1
+na=c("dxy","GDM","P","dxy * GDM","dxy * P","GDP * P","dxy * GDM * P")
+se=c(0.006814,0.007504,0.003108,0.034235,0.009637,0.010612,0.048416)
+co=c(-0.147779,-0.152028,-0.020229,0.176719,0.067173,0.011354,0.072867)
+
+dd=data.frame("terms"=na,"coeff"=co,"errs"=se)
+
+ggplot(dd,aes(x=terms,y=coeff))+geom_point(size=0.75)+geom_errorbar(aes(ymin=coeff-2*errs,ymax=coeff+2*errs),width=0.2)+ylab("Coefficient estimate")+scale_x_discrete(limits=c("dxy","GDM","P","dxy * GDM","dxy * P","GDP * P","dxy * GDM * P"))+theme_bw() + theme(axis.title.x=element_blank(),panel.grid.major.x = element_blank(),axis.text.x=element_text(angle=45,hjust=1,size=14),axis.title.y=element_text(size=14),axis.text.y=element_text(size=12))
+
+df=data.frame("pop"=as.character(),"b"=as.numeric())
+pops=levels(data3$pop)
+pops=pops[!pops %in% c("WEK","SZI","SNO","KZL","SCH","CHO","ZAP","TZI","RZA")]  #Prior to removing these low data populations, there was a negative relationship b/n Sqrt_div on sqrt_div~dxy slope
+for (i in 1:length(pops)){
+    bb=data1[data1$pop==pops[i] & data1$num_snps>20,]
+    rr=lm(sqrt_div ~ dxy + GD + missing,data=bb)
+    df=rbind(df,data.frame("pop"=pops[i],"b"=rr$coefficients[2]))
+}
+df=merge(df,data3[,c("pop","Sqrt_div","D.y","ploidy")],by="pop")
+df=unique(df)
+
+#plot slope of dxy versus Taj D.
+ggplot(df,aes(y=b,x=D.y,color=ploidy))+geom_point()+geom_smooth(method="lm",se=F)+ylab(expression(paste(beta[d[xy]],sep=" ")))+scale_colour_manual(values=c("red","blue"))+xlab("Tajima's D")+theme_bw()+theme(legend.position = "none",axis.title.y=element_text(size=18),axis.text.y=element_text(size=14),axis.text.x=element_text(size=14),axis.title.x=element_text(size=16))
+
+#OLD
+
+Ns.avg=aggregate(dxy~scaff+end,data=Ns,mean)
+dg.avg.dip=aggregate(sqrt_div~scaff+end,data=dg[dg$ploidy==2,],mean)
+Ns.avg.dip=aggregate(dxy~scaff+end,data=Ns[Ns$ploidy==2,],mean)
+dg.avg.tet=aggregate(sqrt_div~scaff+end,data=dg[dg$ploidy==4,],mean)
+Ns.avg.tet=aggregate(dxy~scaff+end,data=Ns[Ns$ploidy==4,],mean)
+
+Anova(reg.d,type="III")
+Anova(reg.d1,type="III")
+Anova(reg.t,type="III")
 
 dips=data1[data1$ploidy==2.0,]
 tets=data1[data1$ploidy==4.0,]
@@ -297,8 +460,28 @@ reg.d=lm(sqrt_div ~ dxy + GD + missing + pop + pop:dxy,data=dips[dips$num_snps>=
 reg.d1=lm(sqrt_div ~ dxy + GD + missing + pop,data=dips[dips$num_snps>=10,])
 reg.t=lm(sqrt_div ~ dxy + GD + missing + pop + pop:dxy,data=tets[tets$num_snps>=10,])
 
+data.avg=merge(Ns.avg,dg.avg,by=c("scaff","end"))
+data.avg=merge(data.avg,gd,by=c("scaff","end"))
+data.avg=merge(data.avg,m,by=c("scaff","end"))
+dip.avg=merge(Ns.avg.dip,dg.avg.dip,by=c("scaff","end"))
+dip.avg=merge(dip.avg,gd,by=c("scaff","end"))
+dip.avg=merge(dip.avg,m,by=c("scaff","end"))
+tet.avg=merge(Ns.avg.tet,dg.avg.tet,by=c("scaff","end"))
+tet.avg=merge(tet.avg,gd,by=c("scaff","end"))
+tet.avg=merge(tet.avg,m,by=c("scaff","end"))
+
+reg.avg=lm(sqrt_div ~ dxy + GD + missing, data=data.avg)
+reg.dip.avg=lm(sqrt_div ~ dxy + GD + missing, data=dip.avg)
+reg.tet.avg=lm(sqrt_div ~ dxy + GD + missing, data=tet.avg)
+
+Anova(reg.avg,type="III")
+Anova(reg.dip.avg,type="III")
+Anova(reg.tet.avg,type="III")
+
 ggplot(data=tets,aes(x=dxy,y=sqrt_div,color=pop))+geom_smooth(method="lm",fill=NA)+ggtitle("Tetraploids")+ylab("4dg Diversity")+xlab("Avg. Pairwise Nonsyn. Divergence")+theme_bw()+theme(axis.title.x=element_text(size=16),axis.title.y=element_text(size=16),axis.text.x=element_text(size=14),axis.text.y=element_text(size=14),plot.title=element_text(size=16),legend.title=element_text(size=14),legend.text=element_text(size=12))
 ggplot(data=dips,aes(x=dxy,y=sqrt_div,color=pop))+geom_smooth(method="lm",fill=NA)+ggtitle("Diploids")+ylab("4dg Diversity")+xlab("Avg. Pairwise Nonsyn. Divergence")+theme_bw()+theme(axis.title.x=element_text(size=16),axis.title.y=element_text(size=16),axis.text.x=element_text(size=14),axis.text.y=element_text(size=14),plot.title=element_text(size=16),legend.title=element_text(size=14),legend.text=element_text(size=12))
+ggplot(data=tets,aes(x=dxy,y=sqrt_div,color=pop,linetype=ploidy))+geom_smooth(method="lm",fill=NA)+geom_smooth(data=dips,aes(x=dxy,y=sqrt_div,color=pop),fill=NA,method="lm")+ylab("4dg Diversity")+xlab("Avg. Pairwise Nonsyn. Divergence")+theme_bw()+theme(axis.title.x=element_text(size=16),axis.title.y=element_text(size=16),axis.text.x=element_text(size=14),axis.text.y=element_text(size=14),plot.title=element_text(size=16),legend.title=element_text(size=14),legend.text=element_text(size=12))
+
 ggplot(data=tets,aes(x=dxy,y=sqrt_div,color=pop,linetype=ploidy))+geom_smooth(method="lm",fill=NA)+geom_smooth(data=dips,aes(x=dxy,y=sqrt_div,color=pop),fill=NA,method="lm")+ylab("4dg Diversity")+xlab("Avg. Pairwise Nonsyn. Divergence")+theme_bw()+theme(axis.title.x=element_text(size=16),axis.title.y=element_text(size=16),axis.text.x=element_text(size=14),axis.text.y=element_text(size=14),plot.title=element_text(size=16),legend.title=element_text(size=14),legend.text=element_text(size=12))
 
 #23-04-17
@@ -496,11 +679,70 @@ ggplot(bl.gen,aes(x=ploidy_diff2,y=Fst))+geom_violin(data=bl.gen,aes(x=ploidy_di
 bp.gen=bp.gen[order(bp.gen$ploidy_diff2,-bp.gen$Rho),]
 head(bp.gen[bp.gen$ploidy_diff2==4 & bp.gen$Data=="PASS",],20)
 
+
+
 ##### Chrom Diversity plots ########
 
-wlAll.1=
+
 wlAll=wlAll.1[wlAll.1$scaff!="Genome",]
 wlAll['wind']=paste(wlAll$scaff,wlAll$start)
+wlAll['popwind']=paste(wlAll$scaff,wlAll$start,wlAll$pop)
+wlAll['badwind']=NA
+wlAll$badwind=(wlAll$num_sites>1000)*1
+
+#Add breaks around centromeres
+
+wlAll['grouping']=-9
+wlAll[wlAll$scaff=="scaffold_1" & wlAll$start<20000000,]$grouping=1
+wlAll[wlAll$scaff=="scaffold_1" & wlAll$start>20000000,]$grouping=2
+wlAll[wlAll$scaff=="scaffold_2" & wlAll$start<5500000,]$grouping=3
+wlAll[wlAll$scaff=="scaffold_2" & wlAll$start>5500000,]$grouping=4
+wlAll[wlAll$scaff=="scaffold_3" & wlAll$start<16000000,]$grouping=5
+wlAll[wlAll$scaff=="scaffold_3" & wlAll$start>16000000,]$grouping=6
+wlAll[wlAll$scaff=="scaffold_4" & wlAll$start<8000000,]$grouping=7
+wlAll[wlAll$scaff=="scaffold_4" & wlAll$start>8000000,]$grouping=8
+wlAll[wlAll$scaff=="scaffold_5" & wlAll$start<8000000,]$grouping=9
+wlAll[wlAll$scaff=="scaffold_5" & wlAll$start>8000000,]$grouping=10
+wlAll[wlAll$scaff=="scaffold_6" & wlAll$start<15000000,]$grouping=11
+wlAll[wlAll$scaff=="scaffold_6" & wlAll$start>15000000,]$grouping=12
+wlAll[wlAll$scaff=="scaffold_7" & wlAll$start<16000000,]$grouping=13
+wlAll[wlAll$scaff=="scaffold_7" & wlAll$start>16000000,]$grouping=14
+wlAll[wlAll$scaff=="scaffold_8" & wlAll$start<8000000,]$grouping=15
+wlAll[wlAll$scaff=="scaffold_8" & wlAll$start>8000000,]$grouping=16
+
+
+##Below was attempt to produce disjointed lines that would break around windows with less than 100 SNPs (aka bad windows).  This worked generally if I threw out a window for all populations but was difficult to implement on a per population basis.  Decided to just leave all windows in but provide points on graph demarcating low SNP windows.
+bad.windows=wlAll[wlAll$num_snps<100,]
+wlAll=subset(wlAll,!(wlAll$popwind %in% c(bad.windows$popwind)))
+
+bad.windows=bad.windows[order(bad.windows$scaff,bad.windows$start),]
+wlAll['grouping']=-9
+means['grouping']=-9
+jj=0
+for (i in 1:nrow(bad.windows)){
+    if (i==1 & bad.windows[i,]$start>bad.windows[i,]$win_size){
+    wlAll[wlAll$scaff==bad.windows[i,]$scaff & wlAll$start<bad.windows[i,]$start,]$grouping=jj
+    jj = jj + 1
+    }
+    if (i>1 & i < nrow(bad.windows)){
+    if (bad.windows[i,]$start>bad.windows[i,]$win_size){
+    if (bad.windows[i,]$scaff == bad.windows[i-1,]$scaff & nrow(wlAll[wlAll$scaff==bad.windows[i,]$scaff & wlAll$start<bad.windows[i,]$start & wlAll$start>bad.windows[i-1,]$start,]) > 0){
+    wlAll[wlAll$scaff==bad.windows[i,]$scaff & wlAll$start<bad.windows[i,]$start & wlAll$start>bad.windows[i-1,]$start,]$grouping=jj
+    jj = jj + 1
+    }
+    if (bad.windows[i,]$scaff != bad.windows[i-1,]$scaff){
+    wlAll[wlAll$scaff==bad.windows[i,]$scaff & wlAll$start<bad.windows[i,]$start,]$grouping=jj
+    jj = jj + 1
+    }
+    }
+    }
+    if (i == nrow(bad.windows)){
+    wlAll[wlAll$scaff==bad.windows[i,]$scaff & wlAll$start>bad.windows[i,]$start,]$grouping=jj
+    }
+}
+
+#################
+
 wl.dips=wlAll[wlAll$ploidy==2,]
 wl.tets=wlAll[wlAll$ploidy==4,]
 xx.dips=tapply(wl.dips$Diversity,wl.dips$wind,mean)
@@ -514,13 +756,35 @@ means.dips['pop']="DIP"
 means=rbind(means.dips,means.tets)
 means=rename(means,c("key"="wind","value"="Diversity"))
 means$wind=as.character(means$wind)
-means=merge(means,wlAll[,c("scaff","start","wind")],by=c("wind"))
+means=merge(means,wlAll[,c("scaff","start","wind","num_snps","badwind","grouping")],by=c("wind"))
 means=means[!duplicated(means),]
+means$start=as.numeric(means$start)
+
+wlAll=wlAll[!(wlAll$scaff=="scaffold_2" & wlAll$start==33100000),]
+wlAll=wlAll[!(wlAll$scaff=="scaffold_4" & wlAll$start==24450000),]
+wlAll=wlAll[!(wlAll$scaff=="scaffold_5" & wlAll$start==23300000),]
+wlAll=wlAll[!(wlAll$scaff=="scaffold_8" & wlAll$start==24600000),]
+means=means[!(means$scaff=="scaffold_2" & means$start==33100000),]
+means=means[!(means$scaff=="scaffold_4" & means$start==24450000),]
+means=means[!(means$scaff=="scaffold_5" & means$start==23300000),]
+means=means[!(means$scaff=="scaffold_8" & means$start==24600000),]
+
+#Puts all plots into one pdf
+
+wlAll['grouping']=paste(wlAll$pop,wlAll$grouping)
+wlAll$grouping=as.factor(wlAll$grouping)
+means['grouping']=paste(means$pop,means$grouping)
+means$grouping=as.factor(means$grouping)
+
+pdf("~/Documents/Research/300/LineageDiversityByChromosome.pdf",width=20,height=10)
+for(i in 1:8){
+    print(ggplot(wlAll[wlAll$scaff==paste("scaffold_",i,sep=""),], aes(x=start/1000,y=Diversity,color=pop,linetype=as.factor(ploidy),group=grouping)) + geom_line(alpha=0.5) + geom_line(data=means[means$scaff==paste("scaffold_",i,sep=""),], aes(y=Diversity,x=start/1000,linetype=as.factor(ploidy),group=grouping),color='black',alpha=0.3) + geom_point(data=wlAll[wlAll$scaff==paste("scaffold_",i,sep="") & wlAll$badwind==0,], aes(x=start/1000,y=badwind,color=pop),position=position_jitter(width=0,height=0.0025),alpha=0.4) + theme_bw() + xlab("Position (kb)") + ggtitle(paste("Chromosome",i)) + scale_colour_discrete(name="Lineage") + scale_linetype_discrete(name="Ploidy") + theme(axis.title.x=element_text(size=16),axis.title.y=element_text(size=16),axis.text.x=element_text(size=14),axis.text.y=element_text(size=14),plot.title=element_text(size=16),legend.title=element_text(size=16),legend.text=element_text(size=14)))
+}
+dev.off()
 
 ChromDiv1=ggplot(wlAll[wlAll$scaff=="scaffold_1",],aes(x=start/1000,y=log(Diversity),color=pop,linetype=as.factor(ploidy)))+geom_line(alpha=0.4)+geom_line(data=means[means$scaff=="scaffold_1",],aes(y=log(Diversity),x=start/1000,linetype=as.factor(ploidy)),color='black',alpha=0.5)+theme_bw()+xlab("Position (kb)")+ggtitle("Chromosome 1")
-ChromDiv2=ggplot(wlAll[wlAll$scaff=="scaffold_2",],aes(x=start/1000,y=log(Diversity),color=pop,linetype=as.factor(ploidy)))+geom_line(alpha=0.4)+geom_line(data=means[means$scaff=="scaffold_2",],aes(y=log(Diversity),x=start/1000,linetype=as.factor(ploidy)),color='black',alpha=0.5)+theme_bw()+xlab("Position (kb)")+ggtitle("Chromosome 2")
-ChromDiv3=ggplot(wlAll[wlAll$scaff=="scaffold_3",],aes(x=start/1000,y=log(Diversity),color=pop,linetype=as.factor(ploidy)))+geom_line(alpha=0.4)+geom_line(data=means[means$scaff=="scaffold_1",],aes(y=log(Diversity),x=start/1000,linetype=as.factor(ploidy)),color='black',alpha=0.5)+theme_bw()+xlab("Position (kb)")+ggtitle("Chromosome 1")
 
+##Plots a given number of plots per pdf, but these are being put on different pages
 ppp=3  #plots per page
 plot_name="ChromDiv"
 for(i in 1:8){
@@ -537,8 +801,1129 @@ for(i in 1:8){
 }
 dev.off()
 
+########## Chrom Divergence Plots ###########
 
-##The above produces a working graph, but it isn't being called correctly from within the loop
+#New idea for divergence/diversity plots for each lineage where we average the population divergence/diversity within each lineage.  
+
+bpAll=read.table("~/Documents/Research/300/GenomeScan/Data/AllPops_All_WS50.0k_MS1_BPM_New.txt",head=T)
+
+bpAll=read.table("~/Documents/Research/300/GenomeScan/Data/AllPops_All_WS10.0k_MS1_BPM.txt",head=T)
+
+bpAll2=read.table("~/Documents/Research/300/GenomeScan/Data/AllPops_All_WS50.0k_MS1_BPM_New.txt",head=T)
+
+bpAll=read.table("~/Documents/Research/300/GenomeScan/Data/AllPops_All_WS10.0k_MS1_BPM.txt",head=T)
+bpAll=bpAll[bpAll$scaff!="Genome",]
+bpAll['badwind']=NA
+bpAll$badwind=(bpAll$num_snps>50)*1
+
+bpAll$outname=as.character(bpAll$outname)
+bpAll['pop1']=substr(bpAll$outname,1,3)
+bpAll['pop2']=substr(bpAll$outname,4,6)
+
+bpAll1=bpAll
+bpAll1['pop2.x']=bpAll1$pop1
+bpAll1['pop1.x']=bpAll1$pop2
+bpAll1=bpAll1[,-c(13,14)]
+colnames(bpAll1)[13]="pop2"
+colnames(bpAll1)[14]="pop1"
+bpAll=rbind(bpAll,bpAll1)
+
+bpAll['ploidy1']=0
+bpAll['ploidy2']=0
+
+bpAll['lin1']=NA
+bpAll['lin2']=NA
+
+bpAll=bpAll[bpAll$pop1!="ZAP",]  # Remove pops not in Fils1stLineages
+bpAll=bpAll[bpAll$pop2!="ZAP",]
+bpAll=bpAll[bpAll$pop1!="CRO",]
+bpAll=bpAll[bpAll$pop2!="CRO",]
+bpAll=bpAll[bpAll$pop1!="BGS",]
+bpAll=bpAll[bpAll$pop2!="BGS",]
+bpAll=bpAll[bpAll$pop1!="GUL",]
+bpAll=bpAll[bpAll$pop2!="GUL",]
+bpAll=bpAll[bpAll$pop1!="HNI",]
+bpAll=bpAll[bpAll$pop2!="HNI",]
+bpAll=bpAll[bpAll$pop1!="SCH",]
+bpAll=bpAll[bpAll$pop2!="SCH",]
+bpAll=bpAll[bpAll$pop1!="TRT",]
+bpAll=bpAll[bpAll$pop2!="TRT",]
+
+bpAll[bpAll$pop1=="BEL",]$lin1="DDI"
+bpAll[bpAll$pop1=="DRA",]$lin1="TSC"
+bpAll[bpAll$pop1=="LAC",]$lin1="TSC"
+bpAll[bpAll$pop1=="TZI",]$lin1="TSC"
+bpAll[bpAll$pop1=="SPI",]$lin1="TWc"
+bpAll[bpAll$pop1=="TKO",]$lin1="TWc"
+bpAll[bpAll$pop1=="TRE",]$lin1="TWc"
+bpAll[bpAll$pop1=="HOC",]$lin1="TAl"
+bpAll[bpAll$pop1=="KOS",]$lin1="TAl"
+bpAll[bpAll$pop1=="KAS",]$lin1="TAl"
+bpAll[bpAll$pop1=="RFT",]$lin1="TSW"
+bpAll[bpAll$pop1=="SWA",]$lin1="TSW"
+bpAll[bpAll$pop1=="CHO",]$lin1="TSW"
+bpAll[bpAll$pop1=="TBG",]$lin1="TRU"
+bpAll[bpAll$pop1=="KOW",]$lin1="TRU"
+bpAll[bpAll$pop1=="STE",]$lin1="TRU"
+bpAll[bpAll$pop1=="BRD",]$lin1="THE"
+bpAll[bpAll$pop1=="WEK",]$lin1="THE"
+bpAll[bpAll$pop1=="BEL",]$lin1="DDI"
+bpAll[bpAll$pop1=="BIH",]$lin1="DDI"
+bpAll[bpAll$pop1=="FOJ",]$lin1="DDI"
+bpAll[bpAll$pop1=="HNE",]$lin1="DPA"
+bpAll[bpAll$pop1=="KZL",]$lin1="DPA"
+bpAll[bpAll$pop1=="SZI",]$lin1="DPA"
+bpAll[bpAll$pop1=="RZA",]$lin1="DSc"
+bpAll[bpAll$pop1=="GOR",]$lin1="DSc"
+bpAll[bpAll$pop1=="VID",]$lin1="DSc"
+bpAll[bpAll$pop1=="SNO",]$lin1="DWc"
+bpAll[bpAll$pop1=="TRD",]$lin1="DWc"
+bpAll[bpAll$pop1=="VEL",]$lin1="DWc"
+bpAll[bpAll$pop1=="MIE",]$lin1="DBA"
+bpAll[bpAll$pop1=="PRE",]$lin1="DBA"
+
+bpAll[bpAll$pop2=="BEL",]$lin2="DDI"
+bpAll[bpAll$pop2=="DRA",]$lin2="TSC"
+bpAll[bpAll$pop2=="LAC",]$lin2="TSC"
+bpAll[bpAll$pop2=="TZI",]$lin2="TSC"
+bpAll[bpAll$pop2=="SPI",]$lin2="TWc"
+bpAll[bpAll$pop2=="TKO",]$lin2="TWc"
+bpAll[bpAll$pop2=="TRE",]$lin2="TWc"
+bpAll[bpAll$pop2=="HOC",]$lin2="TAl"
+bpAll[bpAll$pop2=="KOS",]$lin2="TAl"
+bpAll[bpAll$pop2=="KAS",]$lin2="TAl"
+bpAll[bpAll$pop2=="RFT",]$lin2="TSW"
+bpAll[bpAll$pop2=="SWA",]$lin2="TSW"
+bpAll[bpAll$pop2=="CHO",]$lin2="TSW"
+bpAll[bpAll$pop2=="TBG",]$lin2="TRU"
+bpAll[bpAll$pop2=="KOW",]$lin2="TRU"
+bpAll[bpAll$pop2=="STE",]$lin2="TRU"
+bpAll[bpAll$pop2=="BRD",]$lin2="THE"
+bpAll[bpAll$pop2=="WEK",]$lin2="THE"
+bpAll[bpAll$pop2=="BEL",]$lin2="DDI"
+bpAll[bpAll$pop2=="BIH",]$lin2="DDI"
+bpAll[bpAll$pop2=="FOJ",]$lin2="DDI"
+bpAll[bpAll$pop2=="HNE",]$lin2="DPA"
+bpAll[bpAll$pop2=="KZL",]$lin2="DPA"
+bpAll[bpAll$pop2=="SZI",]$lin2="DPA"
+bpAll[bpAll$pop2=="RZA",]$lin2="DSc"
+bpAll[bpAll$pop2=="GOR",]$lin2="DSc"
+bpAll[bpAll$pop2=="VID",]$lin2="DSc"
+bpAll[bpAll$pop2=="SNO",]$lin2="DWc"
+bpAll[bpAll$pop2=="TRD",]$lin2="DWc"
+bpAll[bpAll$pop2=="VEL",]$lin2="DWc"
+bpAll[bpAll$pop2=="MIE",]$lin2="DBA"
+bpAll[bpAll$pop2=="PRE",]$lin2="DBA"
+
+bpAll[bpAll$lin1=="DPA",]$ploidy1=2
+bpAll[bpAll$lin1=="DBA",]$ploidy1=2
+bpAll[bpAll$lin1=="DSc",]$ploidy1=2
+bpAll[bpAll$lin1=="DDI",]$ploidy1=2
+bpAll[bpAll$lin1=="DWc",]$ploidy1=2
+bpAll[bpAll$lin1=="TSC",]$ploidy1=4
+bpAll[bpAll$lin1=="TAl",]$ploidy1=4
+bpAll[bpAll$lin1=="TRU",]$ploidy1=4
+bpAll[bpAll$lin1=="TWc",]$ploidy1=4
+bpAll[bpAll$lin1=="THE",]$ploidy1=4
+bpAll[bpAll$lin1=="TSW",]$ploidy1=4
+
+bpAll[bpAll$lin2=="DPA",]$ploidy2=2
+bpAll[bpAll$lin2=="DBA",]$ploidy2=2
+bpAll[bpAll$lin2=="DSc",]$ploidy2=2
+bpAll[bpAll$lin2=="DDI",]$ploidy2=2
+bpAll[bpAll$lin2=="DWc",]$ploidy2=2
+bpAll[bpAll$lin2=="TSC",]$ploidy2=4
+bpAll[bpAll$lin2=="TAl",]$ploidy2=4
+bpAll[bpAll$lin2=="TRU",]$ploidy2=4
+bpAll[bpAll$lin2=="TWc",]$ploidy2=4
+bpAll[bpAll$lin2=="THE",]$ploidy2=4
+bpAll[bpAll$lin2=="TSW",]$ploidy2=4
+
+## CALL DRA AND KOW SEPARATE LINEAGES?
+bpAll[bpAll$pop2=="KOW",]$lin2="KOW"
+bpAll[bpAll$pop2=="DRA",]$lin2="DRA"
+bpAll[bpAll$pop1=="KOW",]$lin1="KOW"
+bpAll[bpAll$pop1=="DRA",]$lin1="DRA"
+bpAll[bpAll$lin1=="DRA",]$ploidy1=4
+bpAll[bpAll$lin1=="DRA",]$ploidy1=4
+bpAll[bpAll$lin1=="KOW",]$ploidy1=4
+bpAll[bpAll$lin1=="KOW",]$ploidy1=4
+
+
+bpAll['ploidy_diff2']=(bpAll$ploidy1+bpAll$ploidy2)
+bpAll$ploidy_diff2=factor(bpAll$ploidy_diff2,levels=c(4,8,6))
+
+lin1=list(unique(bpAll$lin1))
+lin2=list(unique(bpAll$lin2))
+lins=append(unlist(lin1),unlist(lin2))
+lins=unique(lins)
+
+bpAll['propFD']=bpAll$FixedDiff/bpAll$num_snps
+
+#Averages over populations within a lineage to get average divergence from alternative ploidy
+BpAll=data.frame()
+BpAll.v=data.frame()
+for(i in 1:length(lins)){
+     xx=bpAll[(bpAll$lin1==lins[i] | bpAll$lin2==lins[i]) & bpAll$ploidy_diff2==6,]
+     yy=merge(aggregate(dxy~scaff+end,data=xx,mean),aggregate(Rho~scaff+end,data=xx,mean),by=c("scaff","end"))
+     yy=merge(yy,aggregate(Fst~scaff+end,data=xx,mean),by=c("scaff","end"))
+     yy=merge(yy,aggregate(propFD~scaff+end,data=xx,mean),by=c("scaff","end"))
+     yy=merge(yy,aggregate(num_snps~scaff+end,data=xx,mean),by=c("scaff","end"))
+     yy=merge(yy,aggregate(FixedDiff~scaff+end,data=xx,mean),by=c("scaff","end"))
+     zz=merge(aggregate(dxy~scaff+end,data=xx,var),aggregate(Rho~scaff+end,data=xx,var),by=c("scaff","end"))
+     zz=merge(zz,aggregate(Fst~scaff+end,data=xx,var),by=c("scaff","end"))
+     zz=merge(zz,aggregate(propFD~scaff+end,data=xx,var),by=c("scaff","end"))
+     zz=merge(zz,aggregate(num_snps~scaff+end,data=xx,var),by=c("scaff","end"))
+     zz=merge(zz,aggregate(FixedDiff~scaff+end,data=xx,var),by=c("scaff","end"))
+     yy['lin']=lins[i]
+     zz['lin']=lins[i]
+     BpAll.v=rbind(BpAll.v,zz)
+     BpAll=rbind(BpAll,yy)
+ }
+
+#Create additional set of metrics that exclude Baltic and Pannonian diploids
+lins3=list("THE","TRU","TSC","DBA","TSW","TWc","DWc","TAl","DSc")
+BpAll2=data.frame()
+ for(i in 1:length(lins3)){
+    print(lins3[[i]])
+    xx=bpAll[!(bpAll$lin1 %in% c("DPA","DDI")) & !(bpAll$lin2 %in% c("DPA","DDI")),]
+     xx=xx[(xx$lin1==lins3[i] | xx$lin2==lins3[i]) & xx$ploidy_diff2==6,]
+     yy=merge(aggregate(dxy~scaff+end,data=xx,mean),aggregate(Rho~scaff+end,data=xx,mean),by=c("scaff","end"))
+     yy=merge(yy,aggregate(Fst~scaff+end,data=xx,mean),by=c("scaff","end"))
+     yy=merge(yy,aggregate(propFD~scaff+end,data=xx,mean),by=c("scaff","end"))
+     yy=merge(yy,aggregate(num_snps~scaff+end,data=xx,mean),by=c("scaff","end"))
+     yy=merge(yy,aggregate(FixedDiff~scaff+end,data=xx,mean),by=c("scaff","end"))
+     yy['lin']=lins3[i]
+     BpAll2=rbind(BpAll2,yy)
+ }
+
+#HOW TO MERGE DATA FRAMES WITH UNEQUAL NUMBER OF ROWS...by.x??  No, all.x=TRUE
+BpAll=merge(BpAll,BpAll2[,c("scaff","end","lin","dxy","Fst","Rho","FixedDiff","propFD","num_snps")],by=c("scaff","end","lin"),suffixes=c(".wDP",".woDP"), all.x=TRUE) #With Dinaric and Pannonian lineages and without them.
+
+BpAll['wind']=paste(BpAll$scaff,BpAll$end)
+bpAll['wind']=paste(bpAll$scaff,bpAll$end)
+BpAll['popwind']=paste(BpAll$scaff,BpAll$end,BpAll$lin)
+BpAll.v['wind']=paste(BpAll.v$scaff,BpAll.v$end)
+BpAll.v['popwind']=paste(BpAll.v$scaff,BpAll.v$end,BpAll.v$lin)
+#BpAll=merge(BpAll,BpAll.v[,c('dxy','Rho','Fst','propFD','FixedDiff','popwind')],by=c('popwind'),suffixes=c(".mean",".var"))
+
+
+BpAll['ploidy']=-9
+BpAll[BpAll$lin=="DPA",]$ploidy=2
+BpAll[BpAll$lin=="DBA",]$ploidy=2
+BpAll[BpAll$lin=="DSc",]$ploidy=2
+BpAll[BpAll$lin=="DDI",]$ploidy=2
+BpAll[BpAll$lin=="DWc",]$ploidy=2
+BpAll[BpAll$lin=="TSC",]$ploidy=4
+BpAll[BpAll$lin=="TAl",]$ploidy=4
+BpAll[BpAll$lin=="TRU",]$ploidy=4
+BpAll[BpAll$lin=="TWc",]$ploidy=4
+BpAll[BpAll$lin=="THE",]$ploidy=4
+BpAll[BpAll$lin=="TSW",]$ploidy=4
+
+add_grouping=function(df){
+    df['grouping']=-9
+    df[df$scaff=="scaffold_1" & df$end<20000000,]$grouping=1
+    df[df$scaff=="scaffold_1" & df$end>20000000,]$grouping=2
+    df[df$scaff=="scaffold_2" & df$end<5500000,]$grouping=3
+    df[df$scaff=="scaffold_2" & df$end>5500000,]$grouping=4
+    df[df$scaff=="scaffold_3" & df$end<16000000,]$grouping=5
+    df[df$scaff=="scaffold_3" & df$end>16000000,]$grouping=6
+    df[df$scaff=="scaffold_4" & df$end<8000000,]$grouping=7
+    df[df$scaff=="scaffold_4" & df$end>8000000,]$grouping=8
+    df[df$scaff=="scaffold_5" & df$end<8000000,]$grouping=9
+    df[df$scaff=="scaffold_5" & df$end>8000000,]$grouping=10
+    df[df$scaff=="scaffold_6" & df$end<15000000,]$grouping=11
+    df[df$scaff=="scaffold_6" & df$end>15000000,]$grouping=12
+    df[df$scaff=="scaffold_7" & df$end<16000000,]$grouping=13
+    df[df$scaff=="scaffold_7" & df$end>16000000,]$grouping=14
+    df[df$scaff=="scaffold_8" & df$end<8000000,]$grouping=15
+    df[df$scaff=="scaffold_8" & df$end>8000000,]$grouping=16
+    df=df[!(df$scaff=="scaffold_2" & df$end==33150000),]
+    df=df[!(df$scaff=="scaffold_4" & df$end==24500000),]
+    df=df[!(df$scaff=="scaffold_5" & df$end==23350000),]
+    df=df[!(df$scaff=="scaffold_8" & df$end==24650000),]
+    return(df)
+}
+
+BpAll=add_grouping(BpAll)
+bpAll=add_grouping(bpAll)
+
+bl.dips=BpAll[BpAll$ploidy==2,]
+
+# USE AGGREGATE INSTEAD OF TAPPLY AND GET MEANS OF ALL METRICS SIMULTANEOUSLY FOR ONE MASTER DATA FRAME CALLED MEANS
+#This is mean divergence across lineages for alternative ploidy
+means=aggregate(cbind(dxy.wDP, dxy.woDP, Fst.wDP, Fst.woDP, Rho.wDP, Rho.woDP, FixedDiff.wDP, FixedDiff.woDP, propFD.wDP, propFD.woDP) ~ scaff + end,data=bl.dips, mean)
+
+means['wind']=paste(means$scaff,means$end)
+means$wind=as.character(means$wind)
+means=merge(means,BpAll[,c("wind","grouping")],by=c("wind"))
+means=means[!duplicated(means),]
+means$end=as.numeric(means$end)
+
+
+BpAll['badwind']=0
+BpAll$badwind=(BpAll$num_snps.wDP>10)*1
+BpAll['grouping']=paste(BpAll$lin,BpAll$grouping)
+BpAll$grouping=as.factor(BpAll$grouping)
+means['grouping']=paste("AVG",means$grouping)
+means$grouping=as.factor(means$grouping)
+means['ploidy']=2
+means$end=means$end/1000
+BpAll$end=BpAll$end/1000
+means$ploidy=as.factor(means$ploidy)
+BpAll$ploidy=as.factor(BpAll$ploidy)
+
+metrics1=list('dxy.wDP', 'Fst.wDP', 'Rho.wDP', 'FixedDiff.wDP', 'propFD.wDP', 'dxy.woDP', 'Fst.woDP', 'Rho.woDP', 'FixedDiff.woDP', 'propFD.woDP')
+
+for(j in 1:length(metrics1)){
+    print(j)
+pdf(paste("~/Documents/Research/300/Lineage.", metrics1[[j]], ".ByChromosome.WS10k.pdf",sep=""),width=20,height=10)
+for(i in 1:8){
+    print(ggplot(BpAll[BpAll$scaff==paste("scaffold_",i,sep=""),], aes_string(x="end",y=metrics1[[j]],color="lin",linetype="ploidy",group="grouping")) + geom_line(alpha=0.5) + geom_line(data=means[means$scaff==paste("scaffold_",i,sep=""),], aes_string(y=metrics1[[j]],x="end",group="grouping"),color='black',alpha=0.3) + geom_point(data=BpAll[BpAll$scaff==paste("scaffold_",i,sep="") & BpAll$badwind==0,], aes(x=end,y=badwind,color=lin),position=position_jitter(width=0,height=0.005),alpha=0.4) + theme_bw() + xlab("Position (kb)") + ylab(paste("Avg.",metrics1[[j]],"from Alternative Ploidy")) + ggtitle(paste("Chromosome",i)) + scale_colour_discrete(name="Lineage") + scale_linetype_discrete(name="Ploidy") + theme(axis.title.x=element_text(size=16),axis.title.y=element_text(size=16),axis.text.x=element_text(size=14),axis.text.y=element_text(size=14),plot.title=element_text(size=16),legend.title=element_text(size=16),legend.text=element_text(size=14)))
+}
+dev.off()
+}
+
+badwinds3=means[means$badwind==0,]$wind
+plot_region3=function(scaf,start,stop,metric){
+kkk=means[means$scaff==paste("scaffold_",scaf,sep="") & !means$wind %in% badwinds3 & means$end > start & means$end < stop,]
+jjj=BpAll[BpAll$scaff==paste("scaffold_",scaf,sep="") & !BpAll$wind %in% badwinds3 & BpAll$end > start & BpAll$end < stop,]
+    print(ggplot(jjj, aes_string(x="end",y=metric,color="lin",linetype="ploidy",group="grouping")) + geom_line(alpha=0.5) + geom_line(data=kkk, aes_string(y=metric,x="end",group="grouping"),color='black',alpha=0.3) + theme_bw() + xlab("Position (kb)") + ylab(paste("Avg.",metric,"from Alternative Ploidy")) + ggtitle(paste("Chromosome",i)) + scale_colour_discrete(name="Lineage") + scale_linetype_discrete(name="Ploidy") + theme(axis.title.x=element_text(size=16),axis.title.y=element_text(size=16),axis.text.x=element_text(size=14),axis.text.y=element_text(size=14),plot.title=element_text(size=16),legend.title=element_text(size=16),legend.text=element_text(size=14)))
+}
+
+plot_region3(4,22800,23000,"Fst.woDP") #ASY3
+plot_region3(1,9500,10000,"Fst.woDP") #Zyp1a and Zyp1b
+plot_region3(6,1900,2100,"Fst.woDP") #Syn1
+plot_region3(2,17500,18000,"Fst.woDP") #PDS5
+plot_region3(2,12000,12500,"Fst.woDP") #ASY1
+plot_region3(1,000,500,"Fst.woDP") #PRD3
+plot_region3(4,11000,11500,"Fst.woDP") #SMC3
+
+#Below effort is to produce second set of divergence plots for divergence within and between each ploidy, but averaging across populations within each lineage and then averaging across lineages within each ploidy_diff.
+bl.dd=bpAll[bpAll$ploidy_diff2==4,]
+bl.tt=bpAll[bpAll$ploidy_diff2==8,]
+bl.dt=bpAll[bpAll$ploidy_diff2==6,]
+
+
+means.dd.wDP=aggregate(cbind(dxy, Fst, Rho, FixedDiff,  propFD, num_snps) ~ scaff + end,data=bl.dd, mean)
+means.dd.woDP=aggregate(cbind(dxy, Fst, Rho, FixedDiff,  propFD, num_snps) ~ scaff + end,data=bl.dd[!(bl.dd$lin1 %in% c("DPA","DDI")) & !(bl.dd$lin2 %in% c("DPA","DDI")),], mean)
+
+means.tt=aggregate(cbind(dxy, Fst, Rho, FixedDiff, propFD, num_snps) ~ scaff + end,data=bl.tt, mean)
+
+means.dt.wDP=aggregate(cbind(dxy, Fst, Rho, FixedDiff,  propFD, num_snps) ~ scaff + end,data=bl.dt, mean)
+means.dt.woDP=aggregate(cbind(dxy, Fst, Rho, FixedDiff,  propFD, num_snps) ~ scaff + end,data=bl.dt[!(bl.dt$lin1 %in% c("DPA","DDI")) & !(bl.dt$lin2 %in% c("DPA","DDI")),], mean)
+
+
+metrics=list('dxy', 'Fst', 'Rho', 'FixedDiff', 'propFD')
+
+for (i in 1:length(metrics)){
+    means.dd.wDP[paste(metrics[[i]],".std",sep="")]=(means.dd.wDP[,metrics[[i]]]-mean(means.dd.wDP[,metrics[[i]]]))
+    means.dd.woDP[paste(metrics[[i]],".std",sep="")]=(means.dd.woDP[,metrics[[i]]]-mean(means.dd.woDP[,metrics[[i]]]))
+    means.tt[paste(metrics[[i]],".std",sep="")]=(means.tt[,metrics[[i]]]-mean(means.tt[,metrics[[i]]]))
+    means.dt.wDP[paste(metrics[[i]],".std",sep="")]=(means.dt.wDP[,metrics[[i]]]-mean(means.dt.woDP[,metrics[[i]]]))
+    means.dt.woDP[paste(metrics[[i]],".std",sep="")]=(means.dt.woDP[,metrics[[i]]]-mean(means.dt.woDP[,metrics[[i]]]))
+}
+
+
+means.dd=merge(means.dd.wDP,means.dd.woDP,by=c("scaff","end"),suffixes=c(".wDP",".woDP"))
+means.dt=merge(means.dt.wDP,means.dt.woDP,by=c("scaff","end"),suffixes=c(".wDP",".woDP"))
+means.tt=merge(means.tt,means.tt,by=c("scaff","end"),suffixes=c(".wDP",".woDP"))
+means.dd['ploidy_diff2']=4
+means.tt['ploidy_diff2']=8
+means.dt['ploidy_diff2']=6
+means2=rbind(means.dd,means.tt)
+means2=rbind(means2,means.dt)
+means2['wind']=paste(means2$scaff,means2$end)
+
+means2=add_grouping(means2)
+means2$grouping=paste(means2$ploidy_diff2,means2$grouping)
+
+means2$end=means2$end/1000
+means2$ploidy_diff2=as.factor(means2$ploidy_diff2)
+means2['badwind']=0
+means2$badwind=(means2$num_snps.wDP>50)*1
+
+metrics2=list("dxy.std.wDP", "Fst.std.wDP", "Rho.std.wDP","FixedDiff.std.wDP", "propFD.std.wDP", "dxy.std.woDP", "Fst.std.woDP", "Rho.std.woDP","FixedDiff.std.woDP", "propFD.std.woDP")
+
+for(j in 1:length(metrics2)){
+pdf(paste("~/Documents/Research/300/PloidyDiff.", metrics2[[j]],".ByChromosome.WS10k.pdf",sep=""),width=20,height=10)
+for(i in 1:8){
+    print(ggplot(means2[means2$scaff==paste("scaffold_",i,sep=""),], aes_string(x="end",y=metrics2[[j]],color="ploidy_diff2",group="grouping")) + geom_line(alpha=0.5) + geom_point(data=means2[means2$scaff==paste("scaffold_",i,sep="") & means2$badwind==0,], aes(x=end,y=badwind-0.1),position=position_jitter(width=0,height=0.005),alpha=0.4) + theme_bw() + xlab("Position (kb)") + ylab(paste("Standardized",metrics2[[j]])) + ggtitle(paste("Chromosome",i)) + scale_colour_discrete(name="Ploidy", breaks=c("4","8","6"),labels=c("Diploid","Tetraploid","Interploidy")) + theme(axis.title.x=element_text(size=16),axis.title.y=element_text(size=16),axis.text.x=element_text(size=14),axis.text.y=element_text(size=14),plot.title=element_text(size=16),legend.title=element_text(size=16),legend.text=element_text(size=14)))
+}
+dev.off()
+}
+
+badwinds5=means2[means2$badwind==0,]$wind
+badwinds5=c()
+plot_region.pd=function(scaf,start,stop,metric){
+kkk=means2[means2$scaff==paste("scaffold_",scaf,sep="") & !means2$wind %in% badwinds5 & means2$end > start & means2$end < stop,]
+    print(ggplot(kkk, aes_string(x="end",y=metric,color="ploidy_diff2",group="grouping")) + geom_line(alpha=0.5) + theme_bw() + xlab("Position (kb)") + ylab(paste("Standardized Fst")) + scale_colour_discrete(name="Ploidy", breaks=c("4","8","6"),labels=c("Diploid","Tetraploid","Interploidy")) + theme(axis.title.x=element_text(size=16),axis.title.y=element_text(size=16),axis.text.x=element_text(size=14),axis.text.y=element_text(size=14),plot.title=element_text(size=16),legend.title=element_text(size=16),legend.text=element_text(size=14)))
+}
+badwinds5=c()
+plot_region.pd=function(scaf,start,stop,metric){
+kkk=means2[means2$scaff==paste("scaffold_",scaf,sep="") & !means2$wind %in% badwinds5 & means2$end > start & means2$end < stop,]
+    return(ggplot(kkk, aes_string(x="end",y=metric,color="ploidy_diff2",group="grouping")) + geom_line(alpha=0.5) + theme_bw() + xlab("Position (kb)") + ylab(paste("Standardized Fst")) +scale_colour_discrete(name="Ploidy", breaks=c("4","8","6"),labels=c("Diploid","Tetraploid","Interploidy")) + theme(axis.title.x=element_blank(),axis.title.y=element_blank(),axis.text.x=element_text(size=10),axis.text.y=element_text(size=10),plot.title=element_text(size=16),legend.title=element_text(size=12),legend.text=element_text(size=10)))
+}
+
+p1=plot_region.pd(4,22800,23000,"Fst.std.woDP") #ASY3
+p2=plot_region.pd(1,9500,10000,"Fst.std.woDP") #Zyp1a and Zyp1b
+p3=plot_region.pd(6,1900,2100,"Fst.std.woDP") #Syn1
+p4=plot_region.pd(2,17500,18000,"Fst.std.woDP") #PDS5
+p5=plot_region.pd(2,12000,12500,"Fst.std.woDP") #ASY1
+p6=plot_region.pd(1,000,500,"Fst.std.woDP") #PRD3
+p7=plot_region.pd(4,11000,11500,"Fst.std.woDP") #SMC3
+
+library(ggpubr)
+ggarrange(p1,p2,p3,p4,p5,p6,nrow=3,ncol=2,labels=c("A.","B.","C.","D.","E.","F."),common.legend = T,legend="top")
+
+#Among lineage within tetraploid divergence
+lins4=list("THE","TRU","TSC","TSW","TWc","TAl","DRA","KOW")
+BpTet=data.frame()
+BpTet.v=data.frame()
+for(i in 1:length(lins4)){
+     xx=bpAll[(bpAll$lin1==lins4[i] | bpAll$lin2==lins4[i]) & bpAll$ploidy_diff2==8,]
+     yy=merge(aggregate(dxy~scaff+end,data=xx,mean),aggregate(Rho~scaff+end,data=xx,mean),by=c("scaff","end"))
+     yy=merge(yy,aggregate(Fst~scaff+end,data=xx,mean),by=c("scaff","end"))
+     yy=merge(yy,aggregate(propFD~scaff+end,data=xx,mean),by=c("scaff","end"))
+     yy=merge(yy,aggregate(num_snps~scaff+end,data=xx,mean),by=c("scaff","end"))
+     yy=merge(yy,aggregate(FixedDiff~scaff+end,data=xx,mean),by=c("scaff","end"))
+     zz=merge(aggregate(dxy~scaff+end,data=xx,var),aggregate(Rho~scaff+end,data=xx,var),by=c("scaff","end"))
+     zz=merge(zz,aggregate(Fst~scaff+end,data=xx,var),by=c("scaff","end"))
+     zz=merge(zz,aggregate(propFD~scaff+end,data=xx,var),by=c("scaff","end"))
+     zz=merge(zz,aggregate(num_snps~scaff+end,data=xx,var),by=c("scaff","end"))
+     zz=merge(zz,aggregate(FixedDiff~scaff+end,data=xx,var),by=c("scaff","end"))
+     yy['lin']=lins4[i]
+     zz['lin']=lins4[i]
+     BpTet.v=rbind(BpTet.v,zz)
+     BpTet=rbind(BpTet,yy)
+ }
+
+BpTet=add_grouping(BpTet)
+BpTet['wind']=paste(BpTet$scaff,BpTet$end)
+
+means3=aggregate(cbind(dxy, Fst, Rho, FixedDiff, propFD) ~ scaff + end,data=BpTet, mean)
+means3=add_grouping(means3)
+
+means3['wind']=paste(means3$scaff,means3$end)
+means3$wind=as.character(means3$wind)
+means3=means3[!duplicated(means3),]
+means3$end=as.numeric(means3$end)
+
+
+BpTet['badwind']=0
+BpTet$badwind=(BpTet$num_snps>50)*1
+BpTet['grouping']=paste(BpTet$lin,BpTet$grouping)
+BpTet$grouping=as.factor(BpTet$grouping)
+means3['grouping']=paste("AVG",means3$grouping)
+means3$grouping=as.factor(means3$grouping)
+means3$end1=means3$end/1000
+BpTet$end1=BpTet$end/1000
+
+metrics3=list("dxy","Fst","Rho","FixedDiff","propFD")
+for(j in 1:length(metrics3)){
+    print(j)
+pdf(paste("~/Documents/Research/300/WithinTetLineageDiv.", metrics3[[j]], ".ByChromosome.WS10k.pdf",sep=""),width=20,height=10)
+for(i in 1:8){
+    print(ggplot(BpTet[BpTet$scaff==paste("scaffold_",i,sep=""),], aes_string(x="end",y=metrics3[[j]],color="lin",group="grouping")) + geom_line(alpha=0.5) + geom_point(data=BpTet[BpTet$scaff==paste("scaffold_",i,sep="") & BpTet$badwind==0,], aes(x=end,y=badwind-0.01,color=lin),position=position_jitter(width=0,height=0.005),alpha=0.4) + theme_bw() + xlab("Position (kb)") + ylab(paste("Avg.",metrics3[[j]],"from other 4x lineages")) + ggtitle(paste("Chromosome",i)) + scale_colour_discrete(name="Lineage") + theme(axis.title.x=element_text(size=16),axis.title.y=element_text(size=16),axis.text.x=element_text(size=14),axis.text.y=element_text(size=14),plot.title=element_text(size=16),legend.title=element_text(size=16),legend.text=element_text(size=14)))
+}
+dev.off()
+}
+
+plot_region4=function(scaf,start,stop,metric){
+kkk=BpTet[BpTet$scaff==paste("scaffold_",scaf,sep="") & BpTet$end > start & BpTet$end < stop & !BpTet$wind %in% badwinds1 & !BpTet$wind %in% badwinds2,]
+print(ggplot(kkk, aes_string(x="end",y=metric,color="lin",group="grouping")) + geom_line(alpha=0.5) + theme_bw() + xlab("Position (kb)") + ylab(paste("Avg.",metric,"from other 4x lineages")) + ggtitle(paste("Chromosome",scaf)) + scale_colour_discrete(name="Lineage") + theme(axis.title.x=element_text(size=16),axis.title.y=element_text(size=16),axis.text.x=element_text(size=14),axis.text.y=element_text(size=14),plot.title=element_text(size=16),legend.title=element_text(size=16),legend.text=element_text(size=14)))
+}
+
+plot_region4(4,22800,23000,"Fst") #ASY3
+plot_region4(1,9500,10000,"Fst") #Zyp1a and Zyp1b
+plot_region4(6,1900,2100,"Fst") #Syn1
+plot_region4(2,17600,17800,"Fst") #PDS5
+plot_region4(2,12300,12500,"Fst") #ASY1
+plot_region4(1,000,500,"Fst") #PRD3
+plot_region4(4,11000,11500,"Fst") #SMC3
+
+#Purpose of below graphs is to overlay average divergence of focal tet lineage from all other tet lineages and pairwise divergence of focal tet lineage with diploid lineages. Calling these TetDipSim
+
+#BpTet has data for average divergence of focal tet lineage from all other tet lineages
+
+tetlins=list("THE","TRU","TSC","TSW","TWc","TAl","DRA","KOW")
+diplins=list("DBA","DWc","DSc","DPA","DDI")
+BpTetDip=data.frame()
+for(i in 1:length(tetlins)){
+    for(j in 1:length(diplins)){
+
+     xx=bpAll[(bpAll$lin1==tetlins[i] & bpAll$lin2==diplins[j]) | (bpAll$lin1==diplins[j] & bpAll$lin2==tetlins[i]),]
+     yy=merge(aggregate(dxy~scaff+end,data=xx,mean),aggregate(Rho~scaff+end,data=xx,mean),by=c("scaff","end"))
+     yy=merge(yy,aggregate(Fst~scaff+end,data=xx,mean),by=c("scaff","end"))
+     yy=merge(yy,aggregate(propFD~scaff+end,data=xx,mean),by=c("scaff","end"))
+     yy=merge(yy,aggregate(num_snps~scaff+end,data=xx,mean),by=c("scaff","end"))
+     yy=merge(yy,aggregate(FixedDiff~scaff+end,data=xx,mean),by=c("scaff","end"))
+     yy['lin1']=tetlins[i]
+     yy['lin2']=diplins[j]
+     BpTetDip=rbind(BpTetDip,yy)
+ }
+ }
+
+BpTetDip=add_grouping(BpTetDip)
+BpTetDip['wind']=paste(BpTetDip$scaff,BpTetDip$end)
+BpTetDip['grouping']=paste(BpTetDip$lin1,BpTetDip$lin2,BpTetDip$grouping)
+BpTetDip$grouping=as.factor(BpTetDip$grouping)
+BpTetDip$end1=BpTetDip$end/1000
+BpTetDip$badwind=(BpTetDip$num_snps>10)*1
+badwinds1=BpTetDip[BpTetDip$badwind==0,]$wind
+badwinds3=BpTet[BpTet$badwind==0,]$wind
+
+for(k in 1:length(tetlins)){
+    print(tetlins[[k]])
+for(j in 1:length(metrics3)){
+    print(metrics3[[j]])
+pdf(paste("~/Documents/Research/300/", tetlins[[k]],".TetDipSim.", metrics3[[j]], ".ByChromosome.WS10k.pdf",sep=""),width=20,height=10)
+for(i in 1:8){
+    jj=BpTetDip[BpTetDip$scaff==paste("scaffold_",i,sep="") & BpTetDip$lin1==tetlins[[k]] & !BpTetDip$wind %in% badwinds1 & !BpTetDip$wind %in% badwinds2,]
+    kk=BpTet[BpTet$scaff==paste("scaffold_",i,sep="") & BpTet$lin==tetlins[[k]] & !BpTet$wind %in% badwinds1 & !BpTet$wind %in% badwinds2,]
+    print(ggplot(kk, aes_string(x="end",y=metrics3[[j]],group="grouping")) + geom_line(alpha=0.8) + geom_line(data=jj, aes_string(x="end", y=paste(metrics3[[j]],"+0.35"), color="lin2", group="grouping"),alpha=0.3)+ theme_bw() + xlab("Position (kb)") + ylab(metrics3[[j]]) + ggtitle(paste("Chromosome -",i,tetlins[[k]],"Lineage")) + scale_colour_discrete(name="Lineage",drop=T) + theme(axis.title.x=element_text(size=16),axis.title.y=element_text(size=16),axis.text.x=element_text(size=14),axis.text.y=element_text(size=14),plot.title=element_text(size=16),legend.title=element_text(size=16),legend.text=element_text(size=14)))
+}
+dev.off()
+}
+}
+
+# JUST REMOVE THE BAD WINDOWS PRIOR TO PLOTTING
+
+plot_region=function(Lin,scaf,start,stop,metric){
+kkk=BpTet[BpTet$scaff==paste("scaffold_",scaf,sep="") & BpTet$lin==Lin &BpTet$end > start & BpTet$end < stop,]
+jjj=BpTet[BpTet$scaff==paste("scaffold_",scaf,sep="") & BpTet$badwind==0 & BpTet$lin==Lin & BpTet$end > start & BpTet$end < stop,]
+hhh=BpTetDip[BpTetDip$scaff==paste("scaffold_",scaf,sep="") & BpTetDip$lin1==Lin & BpTetDip$end > start & BpTetDip$end < stop,]
+print(ggplot(kkk, aes_string(x="end",y=metric,group="grouping")) + geom_line(alpha=0.8) + geom_point(data=jjj, aes(x=end,y=badwind-0.01),position=position_jitter(width=0,height=0.005),alpha=0.4) + geom_line(data=hhh, aes_string(x="end", y=paste(metric,"+0.35"), color="lin2", group="grouping"),alpha=0.3)+ theme_bw() + xlab("Position (kb)") + ylab(metric) + ggtitle(paste("Chromosome -",scaf,Lin,"Lineage")) + scale_colour_discrete(name="Lineage",drop=T) + theme(axis.title.x=element_text(size=16),axis.title.y=element_text(size=16),axis.text.x=element_text(size=14),axis.text.y=element_text(size=14),plot.title=element_text(size=16),legend.title=element_text(size=16),legend.text=element_text(size=14)))
+}
+
+
+plot_region1=function(Lin,scaf,start,stop,metric){
+kkk=BpTet[BpTet$scaff==paste("scaffold_",scaf,sep="") & BpTet$lin==Lin &BpTet$end > start & BpTet$end < stop & !BpTet$wind %in% badwinds1 & !BpTet$wind %in% badwinds2,]
+hhh=BpTetDip[BpTetDip$scaff==paste("scaffold_",scaf,sep="") & BpTetDip$lin1==Lin & BpTetDip$end > start & BpTetDip$end < stop & !BpTetDip$wind %in% badwinds1 & !BpTetDip$wind %in% badwinds2,]
+print(ggplot(kkk, aes_string(x="end",y=metric,group="grouping")) + geom_line(alpha=0.8) + geom_line(data=hhh, aes_string(x="end", y=metric, color="lin2", group="grouping"),alpha=0.5) + theme_bw() +  xlab("Position (kb)") + ylab(metric) + ggtitle(paste("Chromosome -",scaf,Lin,"Lineage")) + scale_colour_discrete(name="Lineage",drop=T) + theme(axis.title.x=element_text(size=16),axis.title.y=element_text(size=16),axis.text.x=element_text(size=14),axis.text.y=element_text(size=14),plot.title=element_text(size=16),legend.title=element_text(size=16),legend.text=element_text(size=14)))
+}
+
+plot_region1("TSC",8,12000,13000,"FixedDiff") # Good
+plot_region1("TSC",8,12000,13000,"Rho") # Good
+plot_region1('TSC',1,29000,30000,'Rho')
+plot_region1('TSC',1,24000,25000,'Rho')
+plot_region1('TSC',1,4000,5000,'Rho')
+plot_region1('TSC',2,18000,19000,'Rho')
+plot_region1('TSC',3,11000,12000,'Rho')
+plot_region1('TSC',8,14000,15000,'Rho')
+plot_region1('TSC',7,14000,15000,'Rho')
+plot_region1('TSC',7,8000,9000,'Rho')
+plot_region1('TSC',7,6000,7000,'Rho')
+plot_region1('TSC',4,23000,24000,'Rho')
+
+plot_region1('THE',3,8000,9000,'Rho')
+plot_region1('THE',6,10000,11000,'Rho')
+
+plot_region1("TRU",1,29000,30000,"Fst") # Good
+plot_region1("TRU",2,2000,3000,"Fst")
+plot_region1("TRU",6,6000,8000,"Fst")
+plot_region1("TRU",7,8000,9000,"Fst")
+plot_region1("TRU",4,19500,20500,"Rho") #Maybe
+plot_region1("TRU",8,4000,5000,"Rho")
+
+plot_region1("TAl",2,18000,18500,"Rho") #Maybe
+plot_region1("TAl",7,8000,8500,"Rho") #Maybe
+
+plot_region1("TWc",2,12500,13000,"Rho") #Pretty good
+plot_region1("TWc",2,15500,16000,"Rho")
+plot_region1("TWc",2,16250,16500,"Rho") #Decent
+plot_region1("TWc",2,17500,18000,"Rho") #Also Decent
+plot_region1("TWc",2,18000,18500,"Rho")
+plot_region1("TWc",3,4700,5000,"Rho")
+plot_region1("TWc",3,7700,8100,"Rho") #Good
+plot_region1("TWc",3,12000,13500,"Rho") #Decent
+plot_region1("TWc",5,21000,21250,"Rho")
+plot_region1("TWc",7,4000,4500,"Rho")
+plot_region1("TWc",8,4000,5000,"Rho")
+plot_region1("TWc",5,1500,2000,"dxy")
+plot_region1("TWc",8,12000,13000,"Rho")
+plot_region1("TWc",8,12000,13000,"FixedDiff")
+
+plot_region1('TSW',1,29000,30000,'Fst')
+plot_region1('TSW',1,24000,25000,'Fst')
+plot_region1('TSW',3,18000,19000,'Fst')
+plot_region1('TSW',6,3000,4000,'Fst')
+
+
+plot_region1("TSC",1,9500,10000,"Fst") #Zyp1a and Zyp1b
+plot_region1("TSC",6,1900,2100,"Fst") #Syn1
+plot_region1("TSC",2,17500,18000,"Fst") #PDS5
+plot_region1("TSC",2,12000,12500,"Fst") #ASY1
+plot_region1("TSC",1,000,500,"Fst") #PRD3
+plot_region1("TSC",4,11000,11500,"Fst") #SMC3
+
+plot_region1("TWC",4,22800,23000,"Fst") #ASY3
+plot_region1("TWC",1,9500,10000,"Fst") #Zyp1a and Zyp1b
+plot_region1("TWC",6,1900,2100,"Fst") #Syn1
+plot_region1("TWC",2,17500,18000,"Fst") #PDS5
+plot_region1("TWC",2,12000,12500,"Fst") #ASY1
+plot_region1("TWC",1,000,500,"Fst") #PRD3
+plot_region1("TWC",4,11000,11500,"Fst") #SMC3
+
+plot_region1("TRU",4,22800,23000,"Fst") #ASY3
+plot_region1("TRU",1,9500,10000,"Fst") #Zyp1a and Zyp1b
+plot_region1("TRU",6,1900,2100,"Fst") #Syn1
+plot_region1("TRU",2,17500,18000,"Fst") #PDS5
+plot_region1("TRU",2,12000,12500,"Fst") #ASY1
+plot_region1("TRU",1,000,500,"Fst") #PRD3
+plot_region1("TRU",4,11000,11500,"Fst") #SMC3
+
+plot_region1("TSW",4,22800,23000,"Fst") #ASY3
+plot_region1("TSW",1,9500,10000,"Fst") #Zyp1a and Zyp1b
+plot_region1("TSW",6,1900,2100,"Fst") #Syn1
+plot_region1("TSW",2,17500,18000,"Fst") #PDS5
+plot_region1("TSW",2,12000,12500,"Fst") #ASY1
+plot_region1("TSW",1,000,500,"Fst") #PRD3
+plot_region1("TSW",4,11000,11500,"Fst") #SMC3
+
+plot_region1("TAl",4,22800,23000,"Fst") #ASY3
+plot_region1("TAl",1,9500,10000,"Fst") #Zyp1a and Zyp1b
+plot_region1("TAl",6,1900,2100,"Fst") #Syn1
+plot_region1("TAl",2,17500,18000,"Fst") #PDS5
+plot_region1("TAl",2,12000,12500,"Fst") #ASY1
+plot_region1("TAl",1,000,500,"Fst") #PRD3
+plot_region1("TAl",4,11000,11500,"Fst") #SMC3
+
+plot_region1("THE",4,22800,23000,"Fst") #ASY3
+plot_region1("THE",1,9500,10000,"Fst") #Zyp1a and Zyp1b
+plot_region1("THE",6,1900,2100,"Fst") #Syn1
+plot_region1("THE",2,17500,18000,"Fst") #PDS5
+plot_region1("THE",2,12000,12500,"Fst") #ASY1
+plot_region1("THE",1,000,500,"Fst") #PRD3
+plot_region1("THE",4,11000,11500,"Fst") #SMC3
+
+# Overlay Fay and Wu's H
+wpAll.5=read.table("~/Documents/Research/300/GenomeScan/Data/AllPops_All_WS10k_MS4_5ind_WPM.txt",head=T)
+wpAll.5=wpAll.5[wpAll.5$scaff!="Genome",]
+
+wpAll.5['lin1']=NA
+wpAll.5[wpAll.5$pop=="BEL",]$lin1="DDI"
+wpAll.5[wpAll.5$pop=="DRA",]$lin1="TSC"
+wpAll.5[wpAll.5$pop=="LAC",]$lin1="TSC"
+wpAll.5[wpAll.5$pop=="TZI",]$lin1="TSC"
+wpAll.5[wpAll.5$pop=="SPI",]$lin1="TWc"
+wpAll.5[wpAll.5$pop=="TKO",]$lin1="TWc"
+wpAll.5[wpAll.5$pop=="TRE",]$lin1="TWc"
+wpAll.5[wpAll.5$pop=="HOC",]$lin1="TAl"
+wpAll.5[wpAll.5$pop=="KOS",]$lin1="TAl"
+wpAll.5[wpAll.5$pop=="KAS",]$lin1="TAl"
+wpAll.5[wpAll.5$pop=="RFT",]$lin1="TSW"
+wpAll.5[wpAll.5$pop=="SWA",]$lin1="TSW"
+wpAll.5[wpAll.5$pop=="CHO",]$lin1="TSW"
+wpAll.5[wpAll.5$pop=="TBG",]$lin1="TRU"
+wpAll.5[wpAll.5$pop=="KOW",]$lin1="TRU"
+wpAll.5[wpAll.5$pop=="STE",]$lin1="TRU"
+wpAll.5[wpAll.5$pop=="BRD",]$lin1="THE"
+wpAll.5[wpAll.5$pop=="WEK",]$lin1="THE"
+wpAll.5[wpAll.5$pop=="BEL",]$lin1="DDI"
+wpAll.5[wpAll.5$pop=="BIH",]$lin1="DDI"
+wpAll.5[wpAll.5$pop=="FOJ",]$lin1="DDI"
+wpAll.5[wpAll.5$pop=="HNE",]$lin1="DPA"
+wpAll.5[wpAll.5$pop=="KZL",]$lin1="DPA"
+wpAll.5[wpAll.5$pop=="SZI",]$lin1="DPA"
+wpAll.5[wpAll.5$pop=="RZA",]$lin1="DSc"
+wpAll.5[wpAll.5$pop=="GOR",]$lin1="DSc"
+wpAll.5[wpAll.5$pop=="VID",]$lin1="DSc"
+wpAll.5[wpAll.5$pop=="SNO",]$lin1="DWc"
+wpAll.5[wpAll.5$pop=="TRD",]$lin1="DWc"
+wpAll.5[wpAll.5$pop=="VEL",]$lin1="DWc"
+wpAll.5[wpAll.5$pop=="MIE",]$lin1="DBA"
+wpAll.5[wpAll.5$pop=="PRE",]$lin1="DBA"
+
+wpAll.5[wpAll.5$pop=="KOW",]$lin1="KOW"
+wpAll.5[wpAll.5$pop=="DRA",]$lin1="DRA"
+
+
+
+lins=c("THE","TRU","TSC","TSW","TWc","TAl","DBA","DWc","DSc","DPA","DDI","DRA","KOW")
+WpAll=data.frame()
+for(i in 1:length(lins)){
+     xx=subset(wpAll.5,lin1==lins[i])
+     yy=merge(aggregate(H~scaff+end,data=xx,mean),aggregate(num_snps~scaff+end,data=xx,mean),by=c("scaff","end"))
+     yy=merge(aggregate(E~scaff+end,data=xx,mean),yy,by=c("scaff","end"))
+     yy=merge(aggregate(D~scaff+end,data=xx,mean),yy,by=c("scaff","end"))
+     yy['lin1']=lins[i]
+     WpAll=rbind(WpAll,yy)
+ }
+
+WpAll['wind']=paste(WpAll$scaff, WpAll$end)
+WpAll=add_grouping(WpAll)
+WpAll$grouping=as.factor(WpAll$grouping)
+WpAll$end1=WpAll$end/1000
+WpAll$lin1=as.factor(WpAll$lin1)
+
+BpTet['wind']=paste(BpTet$scaff, BpTet$end)
+BpTet=add_grouping(BpTet)
+BpTet['badwind']=0
+BpTet["lin2"]=BpTet$lin
+BpTet$badwind=(BpTet$num_snps>10)*1
+BpTet['grouping']=paste(BpTet$lin,BpTet$grouping)
+BpTet$grouping=as.factor(BpTet$grouping)
+BpTet$end1=BpTet$end/1000
+
+BpTetDip['wind']=paste(BpTetDip$scaff, BpTetDip$end)
+BpTetDip=add_grouping(BpTetDip)
+BpTetDip$end1=BpTetDip$end/1000
+BpTetDip['grouping']=paste(BpTetDip$lin2,BpTetDip$grouping)
+BpTetDip$badwind=(BpTetDip$num_snps>10)*1
+badwinds1=BpTetDip[BpTetDip$badwind==0,]$wind
+badwinds3=BpTet[BpTet$badwind==0,]$wind
+
+weights_files3 = paste0("~/Documents/Research/300/Twisst/CurrentResults/DM_HM_BP_BI.4dg.scf", chromNames,".DP8MIN230MAC2.LDphase.phyml_bionj.Twisst3c.weights.tsv")
+window_data_files = paste0("~/Documents/Research/300/Twisst/CurrentResults/DM_HM_BP_BI.4dg.scf", chromNames,".DP8MIN230MAC2.LDphase.phyml_bionj.data.tsv")
+weights_by_chrom3 = list()
+window_data_by_chrom3 = list()
+
+for (i in 1:length(weights_files3)){
+    weights <- read.table(weights_files3[i], header = T, as.is = T)
+    weights <- weights/apply(weights,1,sum,na.rm=T)
+    good_rows = which(is.na(weights[,1]) == FALSE)
+    weights_by_chrom3[[i]] <- weights[good_rows,]
+    window_data_by_chrom3[[i]] <- read.table(window_data_files[i], header = T, as.is = T)[good_rows,]
+    }
+
+twisst3=data.frame()
+for (i in 1:8){
+    df=cbind(window_data_by_chrom3[[i]],weights_by_chrom3[[i]])
+    twisst3=rbind(twisst3,df)
+}
+twisst3['end1']=twisst3$end/1000
+
+plot_region1=function(Lin,scaf,start,stop,metric){
+kkk=BpTet[BpTet$scaff==paste("scaffold_",scaf,sep="") & BpTet$lin==Lin &BpTet$end1 > start & BpTet$end1 < stop & !BpTet$wind %in% badwinds1 & !BpTet$wind %in% badwinds3,]
+hhh=BpTetDip[BpTetDip$scaff==paste("scaffold_",scaf,sep="") & BpTetDip$lin1==Lin & BpTetDip$end1 > start & BpTetDip$end1 < stop & !BpTetDip$wind %in% badwinds1 & !BpTetDip$wind %in% badwinds3,]
+jjj=WpAll[WpAll$scaff==paste("scaffold_",scaf,sep="") & WpAll$lin1==Lin & WpAll$end1 > start & WpAll$end1 < stop & !WpAll$wind %in% badwinds1 & !WpAll$wind %in% badwinds3,]
+print(ggplot(kkk, aes_string(x="end",y=metric,group="grouping")) + geom_line(alpha=0.8) + geom_line(data=hhh, aes_string(x="end1", y=metric, color="lin2", group="grouping"),alpha=0.5) +  + geom_line(data=twisst3, aes_string(x="end1", y="topo1"),color="yellow",alpha=0.5) + geom_line(data=jjj, aes_string(x="end1", y="H", group="grouping"),alpha=0.5,color="blue") + theme_bw() + xlab("Position (kb)") + ylab(metric) + ggtitle(paste("Chromosome -",scaf,Lin,"Lineage")) + scale_colour_discrete(name="Lineage",drop=T) + theme(axis.title.x=element_text(size=16),axis.title.y=element_text(size=16),axis.text.x=element_text(size=14),axis.text.y=element_text(size=14),plot.title=element_text(size=16),legend.title=element_text(size=16),legend.text=element_text(size=14)))
+}
+
+library(gridExtra)
+scaleFUN <- function(x) sprintf("%.2f", x)
+plot_region1=function(Lin,scaf,start,stop,metric,legend,span){
+kkk=BpTet[BpTet$scaff==paste("scaffold_",scaf,sep="") & BpTet$lin==Lin &BpTet$end1 > start & BpTet$end1 < stop & !BpTet$wind %in% badwinds1 & !BpTet$wind %in% badwinds3,]
+hhh=BpTetDip[BpTetDip$scaff==paste("scaffold_",scaf,sep="") & BpTetDip$lin1==Lin & BpTetDip$end1 > start & BpTetDip$end1 < stop & !BpTetDip$wind %in% badwinds1 & !BpTetDip$wind %in% badwinds3,]
+jjj=WpAll[WpAll$scaff==paste("scaffold_",scaf,sep="") & WpAll$lin1==Lin & WpAll$end1 > start & WpAll$end1 < stop & !WpAll$wind %in% badwinds1 & !WpAll$wind %in% badwinds3,]
+lll=twisst3[twisst3$scaffold==paste("scaffold_",scaf,sep="") & twisst3$end1 > start & twisst3$end1 < stop,]
+print(grid.arrange(ggplot(data=lll, aes_string(x="end1", y="topo3"))+ geom_smooth(color="yellow",se=F,span=span) + geom_smooth(data=lll,aes_string(x="end1", y="topo1"),color="blue",se=F,span=span) + geom_smooth(data=lll,aes_string(x="end1", y="topo2"),color="red",se=F,span=span) + theme_bw() + ylab("Weight") + scale_y_continuous(labels=scaleFUN,breaks=c(0.3,0.6,0.9)) + theme(axis.title.x=element_blank(),axis.text.x=element_blank(),axis.title.y=element_text(size=16),axis.text.y=element_text(size=13),legend.position="none", panel.grid.major = element_blank(), panel.grid.minor = element_blank(),axis.ticks.x=element_blank()),ggplot(hhh) + geom_smooth(aes_string(x="end1",y=metric,group="grouping",color="lin2"),size=0.5,alpha=0.8,se=F,span=span) + geom_smooth(data=kkk, aes_string(x="end1", y=metric, color="lin2", group="grouping"),alpha=0.5,se=F,span=span,size=1.0) + theme_bw() + ylab(metric) + scale_colour_manual(values=c("#E41A1C", "#377EB8", "#4DAF4A", "#984EA3", "#FF7F00","#000000"),labels=c("DBA","DDI","DPA","DSC","DWC","TET")) + scale_y_continuous(labels=scaleFUN,limits=c(0.1,0.6)) + theme(axis.title.x=element_blank(),axis.title.y=element_text(size=16),axis.text.x=element_blank(),axis.text.y=element_text(size=13),legend.title=element_blank(),legend.text=element_text(size=10),legend.direction="horizontal",legend.justification=c(0.05,0.05),legend.position=legend, panel.grid.major = element_blank(), panel.grid.minor = element_blank(),axis.ticks.x=element_blank()), ggplot(data=jjj, aes_string(x="end1", y="H", group="grouping")) + geom_smooth(color="turquoise",se=F,span=span)+ scale_y_continuous(labels=c("0.0 ","-1.5 ","-3.0 "),breaks=c(0,-1.5,-3)) + coord_cartesian(ylim=c(0.5,-1.9))+ xlab("Position (kb)") + theme_bw() + theme(axis.title.x=element_text(size=16),axis.title.y=element_text(size=16),axis.text.x=element_text(size=12),axis.text.y=element_text(size=13), panel.grid.major = element_blank(), panel.grid.minor = element_blank()),nrow=3))
+}
+
+#SAME AS ABOVE BUT REMOVE y-info
+plot_region2=function(Lin,scaf,start,stop,metric,legend,span){
+kkk=BpTet[BpTet$scaff==paste("scaffold_",scaf,sep="") & BpTet$lin==Lin &BpTet$end1 > start & BpTet$end1 < stop & !BpTet$wind %in% badwinds1 & !BpTet$wind %in% badwinds3,]
+hhh=BpTetDip[BpTetDip$scaff==paste("scaffold_",scaf,sep="") & BpTetDip$lin1==Lin & BpTetDip$end1 > start & BpTetDip$end1 < stop & !BpTetDip$wind %in% badwinds1 & !BpTetDip$wind %in% badwinds3,]
+jjj=WpAll[WpAll$scaff==paste("scaffold_",scaf,sep="") & WpAll$lin1==Lin & WpAll$end1 > start & WpAll$end1 < stop & !WpAll$wind %in% badwinds1 & !WpAll$wind %in% badwinds3,]
+lll=twisst3[twisst3$scaffold==paste("scaffold_",scaf,sep="") & twisst3$end1 > start & twisst3$end1 < stop,]
+print(grid.arrange(ggplot(data=lll, aes_string(x="end1", y="topo3"))+ geom_smooth(color="yellow",se=F,span=span) + geom_smooth(data=lll,aes_string(x="end1", y="topo1"),color="blue",se=F,span=span) + geom_smooth(data=lll,aes_string(x="end1", y="topo2"),color="red",se=F,span=span) + theme_bw() + ylab("Weight") + scale_y_continuous(labels=scaleFUN,breaks=c(0.3,0.6,0.9)) + theme(axis.title.x=element_blank(),axis.text.x=element_blank(),axis.title.y=element_blank(),axis.text.y=element_blank(),legend.position="none", panel.grid.major = element_blank(), panel.grid.minor = element_blank(),axis.ticks.x=element_blank(),axis.ticks.y=element_blank()),ggplot(hhh) + geom_smooth(aes_string(x="end1",y=metric,group="grouping",color="lin2"),size=0.5,alpha=0.8,se=F,span=span) + geom_smooth(data=kkk, aes_string(x="end1", y=metric, color="lin2", group="grouping"),alpha=0.5,se=F,span=span,size=1.0) + theme_bw() + ylab(metric) + scale_colour_manual(values=c("#E41A1C", "#377EB8", "#4DAF4A", "#984EA3", "#FF7F00","#000000"),labels=c("DBA","DDI","DPA","DSC","DWC","TET")) + scale_y_continuous(labels=scaleFUN,limits=c(0.1,0.6)) + theme(axis.title.x=element_blank(),axis.title.y=element_blank(),axis.text.x=element_blank(),axis.text.y=element_blank(),legend.title=element_blank(),legend.text=element_text(size=8),legend.direction="horizontal",legend.justification=c(0.05,0.05),legend.position=legend, panel.grid.major = element_blank(), panel.grid.minor = element_blank(),axis.ticks.x=element_blank(),axis.ticks.y=element_blank()), ggplot(data=jjj, aes_string(x="end1", y="H", group="grouping")) + geom_smooth(color="turquoise",se=F,span=span)+ scale_y_continuous(labels=c("0.0 ","-1.5 ","-3.0 "),breaks=c(0,-1.5,-3)) + coord_cartesian(ylim=c(0.5,-1.7))+ xlab("Position (kb)") + theme_bw() + theme(axis.title.x=element_text(size=16),axis.title.y=element_blank(),axis.text.x=element_text(size=12),axis.text.y=element_blank(), panel.grid.major = element_blank(), panel.grid.minor = element_blank(),axis.ticks.y=element_blank()),nrow=3))
+}
+
+#What about some figures showing similarity of all tet lineages with DWC, but divergence from other dips.  In other words, regions that have retained ancestral polymorphism of progenitor.
+
+#OLD IDEAS ARE BELOW
+
+blAll=blAll[blAll$scaff!="Genome",]
+blAll['badwind']=NA
+blAll$badwind=(blAll$num_snps>50)*1
+
+blAll$outname=as.character(blAll$outname)
+blAll['pop1']=substr(blAll$outname,1,3)
+blAll['pop2']=substr(blAll$outname,4,6)
+
+blAll1=blAll
+blAll1['pop2.x']=blAll1$pop1
+blAll1['pop1.x']=blAll1$pop2
+blAll1=blAll1[,-c(13,14)]
+colnames(blAll1)[13]="pop2"
+colnames(blAll1)[14]="pop1"
+blAll=rbind(blAll,blAll1)
+
+blAll['ploidy1']=0
+blAll['ploidy2']=0
+
+blAll[blAll$pop1=="DPA",]$ploidy1=2
+blAll[blAll$pop1=="DBA",]$ploidy1=2
+blAll[blAll$pop1=="DSc",]$ploidy1=2
+blAll[blAll$pop1=="DDI",]$ploidy1=2
+blAll[blAll$pop1=="DWc",]$ploidy1=2
+blAll[blAll$pop1=="TSC",]$ploidy1=4
+blAll[blAll$pop1=="TAl",]$ploidy1=4
+blAll[blAll$pop1=="TRU",]$ploidy1=4
+blAll[blAll$pop1=="TWc",]$ploidy1=4
+blAll[blAll$pop1=="THE",]$ploidy1=4
+blAll[blAll$pop1=="TSW",]$ploidy1=4
+
+blAll[blAll$pop2=="DPA",]$ploidy2=2
+blAll[blAll$pop2=="DBA",]$ploidy2=2
+blAll[blAll$pop2=="DSc",]$ploidy2=2
+blAll[blAll$pop2=="DDI",]$ploidy2=2
+blAll[blAll$pop2=="DWc",]$ploidy2=2
+blAll[blAll$pop2=="TSC",]$ploidy2=4
+blAll[blAll$pop2=="TAl",]$ploidy2=4
+blAll[blAll$pop2=="TRU",]$ploidy2=4
+blAll[blAll$pop2=="TWc",]$ploidy2=4
+blAll[blAll$pop2=="THE",]$ploidy2=4
+blAll[blAll$pop2=="TSW",]$ploidy2=4
+
+blAll['ploidy_diff2']=(blAll$ploidy1+blAll$ploidy2)
+blAll$ploidy_diff2=factor(blAll$ploidy_diff2,levels=c(4,8,6))
+
+pop1=list(unique(blAll$pop1))
+pop2=list(unique(blAll$pop2))
+pops=append(unlist(pop1),unlist(pop2))
+pops=unique(pops)
+
+blAll['propFD']=blAll$FixedDiff/blAll$num_snps
+
+
+BlAll=data.frame()
+BlAll.v=data.frame()
+for(i in 1:length(pops)){
+     xx=blAll[(blAll$pop1==pops[i] | blAll$pop2==pops[i]) & blAll$ploidy_diff2==6,]
+     yy=merge(aggregate(dxy~scaff+end,data=xx,mean),aggregate(Rho~scaff+end,data=xx,mean),by=c("scaff","end"))
+     yy=merge(yy,aggregate(Fst~scaff+end,data=xx,mean),by=c("scaff","end"))
+     yy=merge(yy,aggregate(propFD~scaff+end,data=xx,mean),by=c("scaff","end"))
+     yy=merge(yy,aggregate(num_snps~scaff+end,data=xx,mean),by=c("scaff","end"))
+     yy=merge(yy,aggregate(FixedDiff~scaff+end,data=xx,mean),by=c("scaff","end"))
+     zz=merge(aggregate(dxy~scaff+end,data=xx,var),aggregate(Rho~scaff+end,data=xx,var),by=c("scaff","end"))
+     zz=merge(zz,aggregate(Fst~scaff+end,data=xx,var),by=c("scaff","end"))
+     zz=merge(zz,aggregate(propFD~scaff+end,data=xx,var),by=c("scaff","end"))
+     zz=merge(zz,aggregate(num_snps~scaff+end,data=xx,var),by=c("scaff","end"))
+     zz=merge(zz,aggregate(FixedDiff~scaff+end,data=xx,var),by=c("scaff","end"))
+     yy['pop']=pops[i]
+     zz['pop']=pops[i]
+     BlAll.v=rbind(BlAll.v,zz)
+     BlAll=rbind(BlAll,yy)
+ }
+
+BlAll['wind']=paste(BlAll$scaff,BlAll$end)
+blAll['wind']=paste(blAll$scaff,blAll$end)
+BlAll['popwind']=paste(BlAll$scaff,BlAll$end,BlAll$pop)
+BlAll.v['wind']=paste(BlAll.v$scaff,BlAll.v$end)
+BlAll.v['popwind']=paste(BlAll.v$scaff,BlAll.v$end,BlAll.v$pop)
+BlAll=merge(BlAll,BlAll.v[,c('dxy','Rho','Fst','propFD','FixedDiff','popwind')],by=c('popwind'),suffixes=c(".mean",".var"))
+
+BlAll['badwind']=NA
+BlAll$badwind=(BlAll$num_snps>50)*1
+
+
+BlAll['ploidy']=-9
+BlAll[BlAll$pop=="DPA",]$ploidy=2
+BlAll[BlAll$pop=="DBA",]$ploidy=2
+BlAll[BlAll$pop=="DSc",]$ploidy=2
+BlAll[BlAll$pop=="DDI",]$ploidy=2
+BlAll[BlAll$pop=="DWc",]$ploidy=2
+BlAll[BlAll$pop=="TSC",]$ploidy=4
+BlAll[BlAll$pop=="TAl",]$ploidy=4
+BlAll[BlAll$pop=="TRU",]$ploidy=4
+BlAll[BlAll$pop=="TWc",]$ploidy=4
+BlAll[BlAll$pop=="THE",]$ploidy=4
+BlAll[BlAll$pop=="TSW",]$ploidy=4
+
+BlAll['grouping']=-9
+BlAll[BlAll$scaff=="scaffold_1" & BlAll$end<20000000,]$grouping=1
+BlAll[BlAll$scaff=="scaffold_1" & BlAll$end>20000000,]$grouping=2
+BlAll[BlAll$scaff=="scaffold_2" & BlAll$end<5500000,]$grouping=3
+BlAll[BlAll$scaff=="scaffold_2" & BlAll$end>5500000,]$grouping=4
+BlAll[BlAll$scaff=="scaffold_3" & BlAll$end<16000000,]$grouping=5
+BlAll[BlAll$scaff=="scaffold_3" & BlAll$end>16000000,]$grouping=6
+BlAll[BlAll$scaff=="scaffold_4" & BlAll$end<8000000,]$grouping=7
+BlAll[BlAll$scaff=="scaffold_4" & BlAll$end>8000000,]$grouping=8
+BlAll[BlAll$scaff=="scaffold_5" & BlAll$end<8000000,]$grouping=9
+BlAll[BlAll$scaff=="scaffold_5" & BlAll$end>8000000,]$grouping=10
+BlAll[BlAll$scaff=="scaffold_6" & BlAll$end<15000000,]$grouping=11
+BlAll[BlAll$scaff=="scaffold_6" & BlAll$end>15000000,]$grouping=12
+BlAll[BlAll$scaff=="scaffold_7" & BlAll$end<16000000,]$grouping=13
+BlAll[BlAll$scaff=="scaffold_7" & BlAll$end>16000000,]$grouping=14
+BlAll[BlAll$scaff=="scaffold_8" & BlAll$end<8000000,]$grouping=15
+BlAll[BlAll$scaff=="scaffold_8" & BlAll$end>8000000,]$grouping=16
+
+BlAll=BlAll[!(BlAll$scaff=="scaffold_2" & BlAll$end==33150000),]
+BlAll=BlAll[!(BlAll$scaff=="scaffold_4" & BlAll$end==24500000),]
+BlAll=BlAll[!(BlAll$scaff=="scaffold_5" & BlAll$end==23350000),]
+BlAll=BlAll[!(BlAll$scaff=="scaffold_8" & BlAll$end==24650000),]
+
+blAll['grouping']=-9
+blAll[blAll$scaff=="scaffold_1" & blAll$end<20000000,]$grouping=1
+blAll[blAll$scaff=="scaffold_1" & blAll$end>20000000,]$grouping=2
+blAll[blAll$scaff=="scaffold_2" & blAll$end<5500000,]$grouping=3
+blAll[blAll$scaff=="scaffold_2" & blAll$end>5500000,]$grouping=4
+blAll[blAll$scaff=="scaffold_3" & blAll$end<16000000,]$grouping=5
+blAll[blAll$scaff=="scaffold_3" & blAll$end>16000000,]$grouping=6
+blAll[blAll$scaff=="scaffold_4" & blAll$end<8000000,]$grouping=7
+blAll[blAll$scaff=="scaffold_4" & blAll$end>8000000,]$grouping=8
+blAll[blAll$scaff=="scaffold_5" & blAll$end<8000000,]$grouping=9
+blAll[blAll$scaff=="scaffold_5" & blAll$end>8000000,]$grouping=10
+blAll[blAll$scaff=="scaffold_6" & blAll$end<15000000,]$grouping=11
+blAll[blAll$scaff=="scaffold_6" & blAll$end>15000000,]$grouping=12
+blAll[blAll$scaff=="scaffold_7" & blAll$end<16000000,]$grouping=13
+blAll[blAll$scaff=="scaffold_7" & blAll$end>16000000,]$grouping=14
+blAll[blAll$scaff=="scaffold_8" & blAll$end<8000000,]$grouping=15
+blAll[blAll$scaff=="scaffold_8" & blAll$end>8000000,]$grouping=16
+
+blAll=blAll[!(blAll$scaff=="scaffold_2" & blAll$end==33150000),]
+blAll=blAll[!(blAll$scaff=="scaffold_4" & blAll$end==24500000),]
+blAll=blAll[!(blAll$scaff=="scaffold_5" & blAll$end==23350000),]
+blAll=blAll[!(blAll$scaff=="scaffold_8" & blAll$end==24650000),]
+
+bl.dips=BlAll[BlAll$ploidy==2,]
+fst.dips=tapply(bl.dips$Fst,bl.dips$wind,mean)
+fst.means=data.frame(key=names(fst.dips),value=fst.dips)
+fst.means=rename(fst.means,c("key"="wind","value"="Fst"))
+fst.means$wind=as.character(fst.means$wind)
+fst.means=merge(fst.means,BlAll[,c("scaff","end","wind","grouping")],by=c("wind"))
+fst.means=fst.means[!duplicated(fst.means),]
+fst.means$end=as.numeric(fst.means$end)
+
+bl.dd=blAll[blAll$ploidy_diff2==4,]
+bl.tt=blAll[blAll$ploidy_diff2==8,]
+bl.dt=blAll[blAll$ploidy_diff2==6,]
+
+fst.dd=tapply(bl.dd$Fst,bl.dd$wind,mean)
+fst.tt=tapply(bl.tt$Fst,bl.tt$wind,mean)
+fst.dt=tapply(bl.dt$Fst,bl.dt$wind,mean)
+fst.dd=data.frame(key=names(fst.dd),value=fst.dd)
+fst.dd=rename(fst.dd,c("key"="wind","value"="Fst"))
+fst.dd['Fst.std']=(fst.dd$Fst-mean(fst.dd$Fst))
+fst.dd['ploidy_diff2']=4
+fst.tt=data.frame(key=names(fst.tt),value=fst.tt)
+fst.tt=rename(fst.tt,c("key"="wind","value"="Fst"))
+fst.tt['ploidy_diff2']=8
+fst.tt['Fst.std']=(fst.tt$Fst-mean(fst.tt$Fst))
+
+fst.dt=data.frame(key=names(fst.dt),value=fst.dt)
+fst.dt=rename(fst.dt,c("key"="wind","value"="Fst"))
+fst.dt['ploidy_diff2']=6
+fst.dt['Fst.std']=(fst.dt$Fst-mean(fst.dt$Fst))
+
+fst.means=rbind(fst.dd,fst.tt)
+fst.means=rbind(fst.means,fst.dt)
+fst.means$wind=as.character(fst.means$wind)
+fst.means=merge(fst.means,blAll[,c("scaff","end","wind","grouping")],by=c("wind"))
+fst.means=fst.means[!duplicated(fst.means),]
+fst.means$end=as.numeric(fst.means$end)
+
+dxy.dd=tapply(bl.dd$dxy,bl.dd$wind,mean)
+dxy.tt=tapply(bl.tt$dxy,bl.tt$wind,mean)
+dxy.dt=tapply(bl.dt$dxy,bl.dt$wind,mean)
+dxy.dd=data.frame(key=names(dxy.dd),value=dxy.dd)
+dxy.dd=rename(dxy.dd,c("key"="wind","value"="dxy"))
+dxy.dd['dxy.std']=(dxy.dd$dxy-mean(dxy.dd$dxy))
+dxy.dd['ploidy_diff2']=4
+dxy.tt=data.frame(key=names(dxy.tt),value=dxy.tt)
+dxy.tt=rename(dxy.tt,c("key"="wind","value"="dxy"))
+dxy.tt['ploidy_diff2']=8
+dxy.tt['dxy.std']=(dxy.tt$dxy-mean(dxy.tt$dxy))
+
+dxy.dt=data.frame(key=names(dxy.dt),value=dxy.dt)
+dxy.dt=rename(dxy.dt,c("key"="wind","value"="dxy"))
+dxy.dt['ploidy_diff2']=6
+dxy.dt['dxy.std']=(dxy.dt$dxy-mean(dxy.dt$dxy))
+
+dxy.means=rbind(dxy.dd,dxy.tt)
+dxy.means=rbind(dxy.means,dxy.dt)
+dxy.means$wind=as.character(dxy.means$wind)
+dxy.means=merge(dxy.means,blAll[,c("scaff","end","wind","grouping")],by=c("wind"))
+dxy.means=dxy.means[!duplicated(dxy.means),]
+dxy.means$end=as.numeric(dxy.means$end)
+
+Rho.dd=tapply(bl.dd$Rho,bl.dd$wind,mean)
+Rho.tt=tapply(bl.tt$Rho,bl.tt$wind,mean)
+Rho.dt=tapply(bl.dt$Rho,bl.dt$wind,mean)
+Rho.dd=data.frame(key=names(Rho.dd),value=Rho.dd)
+Rho.dd=rename(Rho.dd,c("key"="wind","value"="Rho"))
+Rho.dd['Rho.std']=(Rho.dd$Rho-mean(Rho.dd$Rho))
+Rho.dd['ploidy_diff2']=4
+Rho.tt=data.frame(key=names(Rho.tt),value=Rho.tt)
+Rho.tt=rename(Rho.tt,c("key"="wind","value"="Rho"))
+Rho.tt['ploidy_diff2']=8
+Rho.tt['Rho.std']=(Rho.tt$Rho-mean(Rho.tt$Rho))
+
+Rho.dt=data.frame(key=names(Rho.dt),value=Rho.dt)
+Rho.dt=rename(Rho.dt,c("key"="wind","value"="Rho"))
+Rho.dt['ploidy_diff2']=6
+Rho.dt['Rho.std']=(Rho.dt$Rho-mean(Rho.dt$Rho))
+
+Rho.means=rbind(Rho.dd,Rho.tt)
+Rho.means=rbind(Rho.means,Rho.dt)
+Rho.means$wind=as.character(Rho.means$wind)
+Rho.means=merge(Rho.means,blAll[,c("scaff","end","wind","grouping")],by=c("wind"))
+Rho.means=Rho.means[!duplicated(Rho.means),]
+Rho.means$end=as.numeric(Rho.means$end)
+
+num_snps.dd=tapply(bl.dd$num_snps,bl.dd$wind,mean)
+num_snps.tt=tapply(bl.tt$num_snps,bl.tt$wind,mean)
+num_snps.dt=tapply(bl.dt$num_snps,bl.dt$wind,mean)
+num_snps.dd=data.frame(key=names(num_snps.dd),value=num_snps.dd)
+num_snps.dd=rename(num_snps.dd,c("key"="wind","value"="num_snps"))
+num_snps.dd['num_snps.std']=(num_snps.dd$num_snps-mean(num_snps.dd$num_snps))
+num_snps.dd['ploidy_diff2']=4
+num_snps.tt=data.frame(key=names(num_snps.tt),value=num_snps.tt)
+num_snps.tt=rename(num_snps.tt,c("key"="wind","value"="num_snps"))
+num_snps.tt['ploidy_diff2']=8
+num_snps.tt['num_snps.std']=(num_snps.tt$num_snps-mean(num_snps.tt$num_snps))
+
+num_snps.dt=data.frame(key=names(num_snps.dt),value=num_snps.dt)
+num_snps.dt=rename(num_snps.dt,c("key"="wind","value"="num_snps"))
+num_snps.dt['ploidy_diff2']=6
+num_snps.dt['num_snps.std']=(num_snps.dt$num_snps-mean(num_snps.dt$num_snps))
+
+num_snps.means=rbind(num_snps.dd,num_snps.tt)
+num_snps.means=rbind(num_snps.means,num_snps.dt)
+num_snps.means$wind=as.character(num_snps.means$wind)
+num_snps.means=merge(num_snps.means,blAll[,c("scaff","end","wind","grouping")],by=c("wind"))
+num_snps.means=num_snps.means[!duplicated(num_snps.means),]
+num_snps.means$end=as.numeric(num_snps.means$end)
+num_snps.means['badwind']=0
+num_snps.means$badwind=(num_snps.means$num_snps>50)*1
+
+ggplot(fst.means[fst.means$scaff=="scaffold_1",], aes(x=end/1000,y=Fst,color=ploidy_diff2)) + geom_line() + theme_bw() + xlab("Position (kb)") + ylab("Fst") + ggtitle("Chromosome 1") + theme(axis.title.x=element_text(size=16),axis.title.y=element_text(size=16),axis.text.x=element_text(size=14),axis.text.y=element_text(size=14),plot.title=element_text(size=16),legend.title=element_text(size=16),legend.text=element_text(size=14))
+
+fst.means$grouping=paste(fst.means$grouping,fst.means$ploidy_diff2)
+num_snps.means$ploidy_diff2=as.factor(num_snps.means$ploidy_diff2)
+pdf("~/Documents/Research/300/PloidyDiffFstByChromosome.pdf",width=20,height=10)
+for(i in 1:8){
+    print(ggplot(fst.means[fst.means$scaff==paste("scaffold_",i,sep=""),], aes(x=end/1000,y=Fst.std,color=ploidy_diff2,group=grouping)) + geom_line(alpha=0.5) + geom_point(data=num_snps.means[num_snps.means$scaff==paste("scaffold_",i,sep="") & num_snps.means$badwind==0,], aes(x=end/1000,y=badwind-0.15),position=position_jitter(width=0,height=0.005),alpha=0.4) + theme_bw() + xlab("Position (kb)") + ylab("Standardized Fst") + ggtitle(paste("Chromosome",i)) + scale_colour_discrete(name="Ploidy", breaks=c("4","8","6"),labels=c("Diploid","Tetraploid","Interploidy")) + theme(axis.title.x=element_text(size=16),axis.title.y=element_text(size=16),axis.text.x=element_text(size=14),axis.text.y=element_text(size=14),plot.title=element_text(size=16),legend.title=element_text(size=16),legend.text=element_text(size=14)))
+}
+dev.off()
+
+dxy.means$grouping=paste(dxy.means$grouping,dxy.means$ploidy_diff2)
+dxy.means$ploidy_diff2=as.factor(dxy.means$ploidy_diff2)
+pdf("~/Documents/Research/300/PloidyDiffDxyByChromosome.pdf",width=20,height=10)
+for(i in 1:8){
+    print(ggplot(dxy.means[dxy.means$scaff==paste("scaffold_",i,sep=""),], aes(x=end/1000,y=dxy.std,color=ploidy_diff2,group=grouping)) + geom_line(alpha=0.5) + geom_point(data=num_snps.means[num_snps.means$scaff==paste("scaffold_",i,sep="") & num_snps.means$badwind==0,], aes(x=end/1000,y=badwind-0.15),position=position_jitter(width=0,height=0.005),alpha=0.4) + theme_bw() + xlab("Position (kb)") + ylab("Standardized Dxy") + ggtitle(paste("Chromosome",i)) + scale_colour_discrete(name="Ploidy", breaks=c("4","8","6"),labels=c("Diploid","Tetraploid","Interploidy")) + theme(axis.title.x=element_text(size=16),axis.title.y=element_text(size=16),axis.text.x=element_text(size=14),axis.text.y=element_text(size=14),plot.title=element_text(size=16),legend.title=element_text(size=16),legend.text=element_text(size=14)))
+}
+dev.off()
+
+Rho.means$grouping=paste(Rho.means$grouping,Rho.means$ploidy_diff2)
+Rho.means$ploidy_diff2=as.factor(Rho.means$ploidy_diff2)
+pdf("~/Documents/Research/300/PloidyDiffRhoByChromosome.pdf",width=20,height=10)
+for(i in 1:8){
+    print(ggplot(Rho.means[Rho.means$scaff==paste("scaffold_",i,sep=""),], aes(x=end/1000,y=Rho.std,color=ploidy_diff2,group=grouping)) + geom_line(alpha=0.5) + geom_point(data=num_snps.means[num_snps.means$scaff==paste("scaffold_",i,sep="") & num_snps.means$badwind==0,], aes(x=end/1000,y=badwind-0.15),position=position_jitter(width=0,height=0.005),alpha=0.4) + theme_bw() + xlab("Position (kb)") + ylab("Standardized Rho") + ggtitle(paste("Chromosome",i)) + scale_colour_discrete(name="Ploidy", breaks=c("4","8","6"),labels=c("Diploid","Tetraploid","Interploidy")) + theme(axis.title.x=element_text(size=16),axis.title.y=element_text(size=16),axis.text.x=element_text(size=14),axis.text.y=element_text(size=14),plot.title=element_text(size=16),legend.title=element_text(size=16),legend.text=element_text(size=14)))
+}
+dev.off()
+
+#Potential signals??
+Variance of mean Divergence
+means of pairwise variance 
+
+Partition variance in pairwise divergence by ploidy_diff2
+-visualize which group contributing more or less to which variance component.
+
+fst.means=fst.means[!(fst.means$scaff=="scaffold_2" & fst.means$end==33150000),]
+fst.means=fst.means[!(fst.means$scaff=="scaffold_4" & fst.means$end==24500000),]
+fst.means=fst.means[!(fst.means$scaff=="scaffold_5" & fst.means$end==23350000),]
+fst.means=fst.means[!(fst.means$scaff=="scaffold_8" & fst.means$end==24650000),]
+
+#Puts all plots into one pdf
+
+BlAll['grouping']=paste(BlAll$pop,BlAll$grouping)
+BlAll$grouping=as.factor(BlAll$grouping)
+fst.means['grouping']=paste(fst.means$pop,fst.means$grouping)
+fst.means$grouping=as.factor(fst.means$grouping)
+fst.means['ploidy']=2
+
+pdf("~/Documents/Research/300/LineageFstByChromosome.pdf",width=20,height=10)
+for(i in 1:8){
+    print(ggplot(BlAll[BlAll$scaff==paste("scaffold_",i,sep=""),], aes(x=end/1000,y=Fst,color=pop,linetype=as.factor(ploidy),group=grouping)) + geom_line(alpha=0.5) + geom_line(data=fst.means[fst.means$scaff==paste("scaffold_",i,sep=""),], aes(y=Fst,x=end/1000,group=grouping),color='black',alpha=0.3) + geom_point(data=BlAll[BlAll$scaff==paste("scaffold_",i,sep="") & BlAll$badwind==0,], aes(x=end/1000,y=badwind,color=pop),position=position_jitter(width=0,height=0.005),alpha=0.4) + theme_bw() + xlab("Position (kb)") + ylab("Avg. Fst from Alternative Ploidy") + ggtitle(paste("Chromosome",i)) + scale_colour_discrete(name="Lineage") + scale_linetype_discrete(name="Ploidy") + theme(axis.title.x=element_text(size=16),axis.title.y=element_text(size=16),axis.text.x=element_text(size=14),axis.text.y=element_text(size=14),plot.title=element_text(size=16),legend.title=element_text(size=16),legend.text=element_text(size=14)))
+}
+dev.off()
+
+dxy.dips=tapply(bl.dips$dxy,bl.dips$wind,mean)
+dxy.means=data.frame(key=names(dxy.dips),value=dxy.dips)
+dxy.means=rename(dxy.means,c("key"="wind","value"="dxy"))
+dxy.means$wind=as.character(dxy.means$wind)
+dxy.means=merge(dxy.means,BlAll[,c("scaff","end","wind","grouping")],by=c("wind"))
+dxy.means=dxy.means[!duplicated(dxy.means),]
+dxy.means$end=as.numeric(dxy.means$end)
+dxy.means=dxy.means[!(dxy.means$scaff=="scaffold_2" & dxy.means$end==33150000),]
+dxy.means=dxy.means[!(dxy.means$scaff=="scaffold_4" & dxy.means$end==24500000),]
+dxy.means=dxy.means[!(dxy.means$scaff=="scaffold_5" & dxy.means$end==23350000),]
+dxy.means=dxy.means[!(dxy.means$scaff=="scaffold_8" & dxy.means$end==24650000),]
+
+dxy.means['grouping']=paste(dxy.means$pop,dxy.means$grouping)
+dxy.means$grouping=as.factor(dxy.means$grouping)
+dxy.means['ploidy']=2
+
+pdf("~/Documents/Research/300/LineageDxyByChromosome.pdf",width=20,height=10)
+for(i in 1:8){
+    print(ggplot(BlAll[BlAll$scaff==paste("scaffold_",i,sep=""),], aes(x=end/1000,y=dxy,color=pop,linetype=as.factor(ploidy),group=grouping)) + geom_line(alpha=0.5) + geom_line(data=dxy.means[dxy.means$scaff==paste("scaffold_",i,sep=""),], aes(y=dxy,x=end/1000,group=grouping),color='black',alpha=0.3) + geom_point(data=BlAll[BlAll$scaff==paste("scaffold_",i,sep="") & BlAll$badwind==0,], aes(x=end/1000,y=badwind,color=pop),position=position_jitter(width=0,height=0.005),alpha=0.4) + theme_bw() + xlab("Position (kb)") + ylab("Avg. Dxy from Alternative Ploidy") + ggtitle(paste("Chromosome",i)) + scale_colour_discrete(name="Lineage") + scale_linetype_discrete(name="Ploidy") + theme(axis.title.x=element_text(size=16),axis.title.y=element_text(size=16),axis.text.x=element_text(size=14),axis.text.y=element_text(size=14),plot.title=element_text(size=16),legend.title=element_text(size=16),legend.text=element_text(size=14)))
+}
+dev.off()
+
+rho.dips=tapply(bl.dips$Rho,bl.dips$wind,mean)
+rho.means=data.frame(key=names(rho.dips),value=rho.dips)
+rho.means=rename(rho.means,c("key"="wind","value"="Rho"))
+rho.means$wind=as.character(rho.means$wind)
+rho.means=merge(rho.means,BlAll[,c("scaff","end","wind","grouping")],by=c("wind"))
+rho.means=rho.means[!duplicated(rho.means),]
+rho.means$end=as.numeric(rho.means$end)
+rho.means=rho.means[!(rho.means$scaff=="scaffold_2" & rho.means$end==33150000),]
+rho.means=rho.means[!(rho.means$scaff=="scaffold_4" & rho.means$end==24500000),]
+rho.means=rho.means[!(rho.means$scaff=="scaffold_5" & rho.means$end==23350000),]
+rho.means=rho.means[!(rho.means$scaff=="scaffold_8" & rho.means$end==24650000),]
+
+rho.means['grouping']=paste(rho.means$pop,rho.means$grouping)
+rho.means$grouping=as.factor(rho.means$grouping)
+rho.means['ploidy']=2
+
+pdf("~/Documents/Research/300/LineageRhoByChromosome.pdf",width=20,height=10)
+for(i in 1:8){
+    print(ggplot(BlAll[BlAll$scaff==paste("scaffold_",i,sep=""),], aes(x=end/1000,y=Rho,color=pop,linetype=as.factor(ploidy),group=grouping)) + geom_line(alpha=0.5) + geom_line(data=rho.means[rho.means$scaff==paste("scaffold_",i,sep=""),], aes(y=Rho,x=end/1000,group=grouping),color='black',alpha=0.3) + geom_point(data=BlAll[BlAll$scaff==paste("scaffold_",i,sep="") & BlAll$badwind==0,], aes(x=end/1000,y=badwind,color=pop),position=position_jitter(width=0,height=0.025),alpha=0.4) + theme_bw() + ylab("Avg. Rho from Alternative Ploidy") + xlab("Position (kb)") + ggtitle(paste("Chromosome",i)) + scale_colour_discrete(name="Lineage") + scale_linetype_discrete(name="Ploidy") + theme(axis.title.x=element_text(size=16),axis.title.y=element_text(size=16),axis.text.x=element_text(size=14),axis.text.y=element_text(size=14),plot.title=element_text(size=16),legend.title=element_text(size=16),legend.text=element_text(size=14)))
+}
+dev.off()
+
+FD.dips=tapply(bl.dips$propFD,bl.dips$wind,mean)
+FD.means=data.frame(key=names(FD.dips),value=FD.dips)
+FD.means=rename(FD.means,c("key"="wind","value"="propFD"))
+FD.means$wind=as.character(FD.means$wind)
+FD.means=merge(FD.means,BlAll[,c("scaff","end","wind","grouping")],by=c("wind"))
+FD.means=FD.means[!duplicated(FD.means),]
+FD.means$end=as.numeric(FD.means$end)
+FD.means=FD.means[!(FD.means$scaff=="scaffold_2" & FD.means$end==33150000),]
+FD.means=FD.means[!(FD.means$scaff=="scaffold_4" & FD.means$end==24500000),]
+FD.means=FD.means[!(FD.means$scaff=="scaffold_5" & FD.means$end==23350000),]
+FD.means=FD.means[!(FD.means$scaff=="scaffold_8" & FD.means$end==24650000),]
+
+FD.means['grouping']=paste(FD.means$pop,FD.means$grouping)
+FD.means$grouping=as.factor(FD.means$grouping)
+FD.means['ploidy']=2
+
+pdf("~/Documents/Research/300/LineagePropFDByChromosome.pdf",width=20,height=10)
+for(i in 1:8){
+    print(ggplot(BlAll[BlAll$scaff==paste("scaffold_",i,sep=""),], aes(x=end/1000,y=propFD,color=pop,linetype=as.factor(ploidy),group=grouping)) + geom_line(alpha=0.5) + geom_line(data=FD.means[FD.means$scaff==paste("scaffold_",i,sep=""),], aes(y=propFD,x=end/1000,group=grouping),color='black',alpha=0.3) + geom_point(data=BlAll[BlAll$scaff==paste("scaffold_",i,sep="") & BlAll$badwind==0,], aes(x=end/1000,y=badwind-0.005,color=pop),position=position_jitter(width=0,height=0.0015),alpha=0.4) + theme_bw() + ylab("Avg. Proportion of SNPs that are Fixed Differences from Alternative Ploidy") + xlab("Position (kb)") + ggtitle(paste("Chromosome",i)) + scale_colour_discrete(name="Lineage") + scale_linetype_discrete(name="Ploidy") + theme(axis.title.x=element_text(size=16),axis.title.y=element_text(size=16),axis.text.x=element_text(size=14),axis.text.y=element_text(size=14),plot.title=element_text(size=16),legend.title=element_text(size=16),legend.text=element_text(size=14)))
+}
+dev.off()
+
+bl.dips=BlAll[BlAll$ploidy==2,]
+FD1.dips=tapply(bl.dips$FixedDiff,bl.dips$wind,mean)
+FD1.dips=tapply(bl.dips$FixedDiff,bl.dips$wind,mean)
+FD1.means=data.frame(key=names(FD1.dips),value=FD1.dips)
+FD1.means=rename(FD1.means,c("key"="wind","value"="FixedDiff"))
+FD1.means$wind=as.character(FD1.means$wind)
+FD1.means=merge(FD1.means,BlAll[,c("scaff","end","wind","grouping")],by=c("wind"))
+FD1.means=FD1.means[!duplicated(FD1.means),]
+FD1.means$end=as.numeric(FD1.means$end)
+FD1.means=FD1.means[!(FD1.means$scaff=="scaffold_2" & FD1.means$end==33150000),]
+FD1.means=FD1.means[!(FD1.means$scaff=="scaffold_4" & FD1.means$end==24500000),]
+FD1.means=FD1.means[!(FD1.means$scaff=="scaffold_5" & FD1.means$end==23350000),]
+FD1.means=FD1.means[!(FD1.means$scaff=="scaffold_8" & FD1.means$end==24650000),]
+
+FD1.means['grouping']=paste(FD1.means$pop,FD1.means$grouping)
+FD1.means$grouping=as.factor(FD1.means$grouping)
+FD1.means['ploidy']=2
+
+pdf("~/Documents/Research/300/LineageRawFDByChromosome.pdf",width=20,height=10)
+for(i in 1:8){
+    print(ggplot(BlAll[BlAll$scaff==paste("scaffold_",i,sep=""),], aes(x=end/1000,y=FixedDiff,color=pop,linetype=as.factor(ploidy),group=grouping)) + geom_line(alpha=0.5) + geom_line(data=FD1.means[FD1.means$scaff==paste("scaffold_",i,sep=""),], aes(y=FixedDiff,x=end/1000,group=grouping),color='black',alpha=0.3) + geom_point(data=BlAll[BlAll$scaff==paste("scaffold_",i,sep="") & BlAll$badwind==0,], aes(x=end/1000,y=badwind-1,color=pop),position=position_jitter(width=0,height=0.5),alpha=0.4) + theme_bw() + ylab("Avg. Proportion of SNPs that are Fixed Differences from Alternative Ploidy") + xlab("Position (kb)") + ggtitle(paste("Chromosome",i)) + scale_colour_discrete(name="Lineage") + scale_linetype_discrete(name="Ploidy") + theme(axis.title.x=element_text(size=16),axis.title.y=element_text(size=16),axis.text.x=element_text(size=14),axis.text.y=element_text(size=14),plot.title=element_text(size=16),legend.title=element_text(size=16),legend.text=element_text(size=14)))
+}
+dev.off()
+
+########## 
+
 
 AFS plots:
 
@@ -883,3 +2268,15 @@ write.table(dcast(pa1,value.var = "freq",scaff+pos~pop),file="~/Documents/Resear
 write.table(dcast(di1,value.var = "freq",scaff+pos~pop),file="~/Documents/Research/300/PrivateAlleles/PrivateAlleles_Dinaric_Min0.3_Max0.05.txt",row.names=F,quote=F)
 write.table(dcast(di2,value.var = "freq",scaff+pos~pop),file="~/Documents/Research/300/PrivateAlleles/PrivateAlleles_Dinaric_Min0.3_Max0.0001.txt",row.names=F,quote=F)
 write.table(dcast(pa2,value.var = "freq",scaff+pos~pop),file="~/Documents/Research/300/PrivateAlleles/PrivateAlleles_Pannonian_Min0.3_Max0.0001.txt",row.names=F,quote=F)
+
+######## Allele frequency change figure ########
+
+sel=read.csv("~/Documents/Research/300/FreqChange.csv")
+selm=melt(sel,id.var="Generation")
+selm["Ploidy"]=-9
+selm[selm$variable %in% c("x.4.s.0.1.h1.0.25.h2.0.5.h3.0.75","x.4.s.0.1.h1.1.h2.1.h3.1","x.4.s0.1.h1.0.h2.0.h3.0"),]$Ploidy=4
+selm[!selm$variable %in% c("x.4.s.0.1.h1.0.25.h2.0.5.h3.0.75","x.4.s.0.1.h1.1.h2.1.h3.1","x.4.s0.1.h1.0.h2.0.h3.0"),]$Ploidy=2
+
+ggplot(selm,aes(x=Generation,y=value,color=as.factor(Ploidy),linetype=variable))+geom_line()+ylab("Frequency")+scale_linetype_discrete(name="Dominance coefficients",breaks=c("x.2.s.0.1.h.0","x.2.s.0.1.h.0.5","x.2.s.0.1.h.1","x.4.s0.1.h1.0.h2.0.h3.0","x.4.s.0.1.h1.0.25.h2.0.5.h3.0.75","x.4.s.0.1.h1.1.h2.1.h3.1"),labels=c("h = 0.0","h = 0.5","h = 1.0",expression(paste(h[1], " = 0.0, ",h[2]," = 0.0, ",h[3]," = 0.0")),expression(paste(h[1], " = 0.25, ",h[2]," = 0.5, ",h[3]," = 0.75")),expression(paste(h[1], " = 1.0, ",h[2]," = 1.0, ",h[3]," = 1.0"))))+scale_color_manual(breaks=c("2","4"),values=c("red","blue"),guide='none')+theme_bw()+theme(legend.text.align = 0,legend.justification=c(0.9,0.9),legend.position=c(0.95,0.5))
+
+ggplot(selm,aes(x=Generation,y=value,color=variable,linetype=variable))+geom_line()+ylab("Frequency")+scale_linetype_manual(name="Dominance coefficients",breaks=c("x.2.s.0.1.h.0","x.2.s.0.1.h.0.5","x.2.s.0.1.h.1","x.4.s0.1.h1.0.h2.0.h3.0","x.4.s.0.1.h1.0.25.h2.0.5.h3.0.75","x.4.s.0.1.h1.1.h2.1.h3.1"),labels=c("h = 0.0","h = 0.5","h = 1.0",expression(paste(h[1], " = 0.0, ",h[2]," = 0.0, ",h[3]," = 0.0")),expression(paste(h[1], " = 0.25, ",h[2]," = 0.5, ",h[3]," = 0.75")),expression(paste(h[1], " = 1.0, ",h[2]," = 1.0, ",h[3]," = 1.0"))),values=c("solid","solid","dashed","dashed","dotdash","dotdash"))+scale_color_manual(name="Dominance coefficients",breaks=c("x.2.s.0.1.h.0","x.2.s.0.1.h.0.5","x.2.s.0.1.h.1","x.4.s0.1.h1.0.h2.0.h3.0","x.4.s.0.1.h1.0.25.h2.0.5.h3.0.75","x.4.s.0.1.h1.1.h2.1.h3.1"),labels=c("h = 0.0","h = 0.5","h = 1.0",expression(paste(h[1], " = 0.0, ",h[2]," = 0.0, ",h[3]," = 0.0")),expression(paste(h[1], " = 0.25, ",h[2]," = 0.5, ",h[3]," = 0.75")),expression(paste(h[1], " = 1.0, ",h[2]," = 1.0, ",h[3]," = 1.0"))),values=c("red","blue","red","blue","red","blue"))+theme_bw()+theme(legend.text.align = 0,legend.justification=c(0.9,0.9),legend.position=c(0.955,0.45),axis.text.y=element_text(size=14),axis.text.x=element_text(size=14),axis.title.y=element_text(size=16),axis.title.x=element_text(size=16),legend.title=element_text(size=14),legend.text=element_text(size=10))
